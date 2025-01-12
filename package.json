@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@datastructures-js/priority-queue": "^6.3.2",
+    "jsdom": "^25.0.1",
+    "lodash": "^4.17.21",
+    "three": "^0.172.0",
+    "vite": "^6.0.6"
+  }
+}
