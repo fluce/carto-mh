@@ -4,8 +4,9 @@ import _ from 'lodash';
 const trolls=await getTrollsData();
 
 async function getRawData() {
-    var res=await fetchAndDecode('/view.data');
-    return res.split('\n');
+    const res=await fetch('/view.data');
+    const lines=(await res.text()).split('\n');
+    return lines;
 }
 
 function memoize(fn, indexer) {

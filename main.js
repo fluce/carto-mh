@@ -39,11 +39,12 @@ renderer.domElement.addEventListener('pointermove',
         pointer.y = -((event.clientY-renderer.domElement.offsetTop) / renderer.domElement.offsetHeight) * 2 + 1;
     });
 
-const data = await loadData(["lieux","tresors","monstres"], "TGV", "Raccourcis", "Trou de Météorite");
+const data = await loadData(["lieux","tresors"], "TGV", "Raccourcis", "Trou de Météorite");
 console.dir(data);
-const { path, cost }= findPath(data, index, data.origine[0], { x: 65, y: 0, z: 0 });
-console.log("Cost", cost);
-console.log("Length", path.length);
+const path = [];
+//const { path, cost }= findPath(data, index, data.origine[0], { x: 65, y: 0, z: 0 });
+//console.log("Cost", cost);
+//console.log("Length", path.length);
 
 const { scene, origin, update } = await createScene(data, path);
 
