@@ -29,14 +29,18 @@ function memoize(fn, indexer) {
 function createIndex() {
     const index = {};
     const geoIndex = {};
+
+    const calcId=(i)=>i.type=='lieux'?i:`${i.type}-${i.id}`;
+
     const indexer=function(i) {
         const entry=geoIndex[`x${i.x}y${i.y}z${i.z}`] ??= [];
-        const existing=index[i.id];
+        const id=calcId(i.id);
+        const existing=index[id];
         if (existing) {
             i=_.merge(existing, i);            
             entry.splice(entry.indexOf(existing),1);            
         } 
-        index[i.id]=i;
+        index[id]=i;
         entry.push(i);            
     }
 
@@ -53,10 +57,10 @@ function createIndex() {
         }
         const [x, y, z] = args;
         const idx=`x${x}y${y}z${z}`;
-        return geoIndex[idxx]??[];
+        return geoIndex[idx]??[];
     }
 
-    return { indexer, get };
+    return { indexer, get, calcId };
 }
 
 export const index=createIndex();
@@ -78,7 +82,7 @@ export async function getRefData(type) {
     const res=await fetch(url);
     const lines=(await res.text()).split('\n');
     //console.dir(lines);
-    const ret=lines.map(x=>x.split(';')).map(x=>{return { id: parseInt(x[0]), name: x[1], x: parseInt(x[2]), y: parseInt(x[3]), z: parseInt(x[4]), type: x[6]=="raccourci"?"raccourcis":"lieux", typeLieu:x[5] };});
+    const ret=lines.map(x=>x.split(/(?<!\\);/)).map(x=>{return { id: parseInt(x[0]), name: x[1].replaceAll("\\;",";"), x: parseInt(x[2]), y: parseInt(x[3]), z: parseInt(x[4]), type: x[6]=="raccourci"?"raccourcis":"lieux", typeLieu:x[5] };});
     console.dir(ret);
     return ret;
 }

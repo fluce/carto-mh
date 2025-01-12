@@ -33,21 +33,21 @@ async function loadLieux(typeLieu) {
                 r.push(...dt);
                 if (dt.length>0) {
                     fs.writeFile(`public/${i}.json`, JSON.stringify(dt.map(x=>{delete x.lastUpdate; return x;})));
-                    fs.writeFile(`public/${i}.csv`, dt.map(x=>`${x.id};${x.name};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+                    fs.writeFile(`public/${i}.csv`, dt.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
                 }
             }
         }
         fs.writeFile(`public/${j}.json`, JSON.stringify(data[j].map(x=>{delete x.lastUpdate; return x;})));
-        fs.writeFile(`public/${j}.csv`, data[j].map(x=>`${x.id};${x.name};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+        fs.writeFile(`public/${j}.csv`, data[j].map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
     }
 
     if (r.length>0) {
         fs.writeFile(`public/Raccourcis.json`, JSON.stringify(r.map(x=>{delete x.lastUpdate; return x;})));
-        fs.writeFile(`public/Raccourcis.csv`, r.map(x=>`${x.id};${x.name};${x.x};${x.y};${x.z};${x.type};raccourci`).join('\n'));
+        fs.writeFile(`public/Raccourcis.csv`, r.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type};raccourci`).join('\n'));
     }
 
     fs.writeFile(`public/${nameMap[typeLieu]}.json`, JSON.stringify(data));
-    fs.writeFile(`public/${nameMap[typeLieu]}.csv`, Object.values(data).flatMap(x=>x).map(x=>`${x.id};${x.name};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+    fs.writeFile(`public/${nameMap[typeLieu]}.csv`, Object.values(data).flatMap(x=>x).map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
 }
 
 

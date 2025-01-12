@@ -51,11 +51,13 @@ export function createXYZCube(size, materialLine) {
     return new LineSegments2(geometrySegments,materialLine);
 }
 
-export function createInstancedMesh(geometry, material, d) {
+export function createInstancedMesh(geometry, material, d, log=false) {
     const mesh = new THREE.InstancedMesh(geometry, material, d.length);
     mesh.data = d;
     const matrix = new THREE.Matrix4();
     for (var j = 0; j < d.length; j++) {
+        if (d[j].z===26 && log)
+            console.log("Hello",j,d[j]);
         matrix.makeTranslation(d[j].x, d[j].y, d[j].z);
         mesh.setMatrixAt(j, matrix);
         mesh.set

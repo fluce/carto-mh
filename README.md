@@ -1,4 +1,4 @@
-* Create config.js from config_template.js
+* Create config.mjs from config_template.mjs
 * npm install
 
 * node .\load-lieux.mjs

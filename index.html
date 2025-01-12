@@ -6,12 +6,20 @@
 		<style>
 			body { margin: 0; }
             #canvas { width: 99vw; height: 90vh; }
-            #selection { width: 99vw; height: 10vh; }
+            #info { width: 99vw; height: 10vh; }
+			#groups {
+				column-count: 7;
+				cursor: pointer;
+			}
 		</style>
 	</head>
 	<body>
 		<script type="module" src="/main.js"></script>
-        <div id="selection">Selection</div>
+		<div id="info">
+			<div id="selection">Selection</div>
+			<div id="groups"></div>
+		</div>
+        
         <div id="canvas"></div>
 	</body>
 </html>
