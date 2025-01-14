@@ -18,6 +18,7 @@ function memoize(fn, indexer) {
             return cache.get(key);
         console.log(`Loading data for ${key}`);
         const ret = await fn(...args);
+        console.log(`Indexing data for ${key}`, ret);
         for (var i of Object.values(ret)) 
             for (var o of i) 
                 indexer(o);
@@ -33,15 +34,26 @@ function createIndex() {
     const calcId=(i)=>i.type=='lieux'?i:`${i.type}-${i.id}`;
 
     const indexer=function(i) {
-        const entry=geoIndex[`x${i.x}y${i.y}z${i.z}`] ??= [];
+        const geoId=`x${i.x}y${i.y}z${i.z}`;
+        const entry=geoIndex[geoId] ?? [];
         const id=calcId(i.id);
         const existing=index[id];
         if (existing) {
             i=_.merge(existing, i);            
-            entry.splice(entry.indexOf(existing),1);            
+            if (geoId==="x60y-42z-51") console.log(i, "before", JSON.stringify(entry));
+            const idx=entry.findIndex(x=>x.id==i.id && x.type==i.type);
+            if (idx>=0)
+                entry.splice(idx,1);
+            if (geoId==="x60y-42z-51") console.log(i, "after", JSON.stringify(entry));
         } 
+        if (geoId==="x60y-42z-51") console.log(i, geoId, JSON.stringify(entry));
         index[id]=i;
-        entry.push(i);            
+        entry.push({...i});
+        if (geoId==="x60y-42z-51") console.log(i, JSON.stringify(entry));
+        if (geoId==="x60y-42z-51") {
+            console.log(`Indexing ${i.type} ${i.id} ${geoId}`, entry);
+        }
+        geoIndex[geoId] = entry;
     }
 
     const get=function(...args) {

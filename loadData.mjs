@@ -10,11 +10,15 @@ export async function loadData(viewException, ...layers) {
         ]
     );
 
-    data.groups=
-        Object.fromEntries(
+    data.groups= {
+        trolls: { items: data.trolls ?? [], color: 0x0000ff },
+        monstres: { items: data.monstres ?? [], color: 0xff0000 },
+        tresors: { items: data.tresors ?? [], color: 0xffff00 },
+        ...Object.fromEntries(
             Object.entries(Object.groupBy(data.lieux ?? [], x => x.typeLieu))
-                .map(([k,v]) => [k,{items:v}])
-        );
+                .map(([k,v]) => [k,{items:v, autocolor: true}])
+        )
+    };
         
     return data;
 }

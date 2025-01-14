@@ -1,0 +1,28 @@
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  height: 100%;
+  position: relative;
+}
+
+#my-three {
+  flex-grow: 1;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+#my3dcontainer {
+    flex-grow: 1;
+    height: 100%;
+}

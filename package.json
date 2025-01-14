@@ -3,7 +3,12 @@
     "@datastructures-js/priority-queue": "^6.3.2",
     "jsdom": "^25.0.1",
     "lodash": "^4.17.21",
-    "three": "^0.172.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.6"
   }
 }

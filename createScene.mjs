@@ -26,13 +26,13 @@ export async function createScene(data, path) {
         //wireframe: true
     });
     const material_monstres = new THREE.MeshPhongMaterial({
-        color: 0xff0000,
+        color: data.groups.monstres.color,
     });
     const material_trolls = new THREE.MeshPhongMaterial({
-        color: 0x0000ff,
+        color: data.groups.trolls.color,
     });
     const material_tresors = new THREE.MeshPhongMaterial({
-        color: 0xffff00,
+        color: data.groups.tresors.color,
     });
     const cube = new THREE.Mesh(geometry, material);
     scene.add(cube);
@@ -40,21 +40,31 @@ export async function createScene(data, path) {
     const materialHandler = MaterialHandler();
 
     for (var i of Object.keys(data.groups)) {
-        materialHandler.setupMaterial(i);
+        if (data.groups[i].autocolor) {
+            materialHandler.setupMaterial(i);
+        }
     }
 
     for (var i of Object.keys(data.groups)) {
-        const material = materialHandler.getMaterial(i);
-        const d = data.groups[i].items.map(x => { return { x: x.x, y: x.z, z: x.y, data: x }; });
-        const mesh = createInstancedMesh(geometry, material, d);
-        data.groups[i].mesh = mesh;
-        data.groups[i].color = material.color;
-        scene.add(mesh);
+        if (data.groups[i].autocolor) {
+            const material = materialHandler.getMaterial(i);
+            const d = data.groups[i].items.map(x => { return { x: x.x, y: x.z, z: x.y, data: x }; });
+            const mesh = createInstancedMesh(geometry, material, d);
+            data.groups[i].mesh = mesh;
+            data.groups[i].color = material.color;
+            scene.add(mesh);
+        }
     }
 
-    scene.add(createInstancedMesh(smallBox, material_trolls, (data.trolls ?? []).map(x => { return { x: x.x - 0.25, y: x.z, z: x.y, data: x }; })));
-    scene.add(createInstancedMesh(smallBox, material_monstres, (data.monstres ?? []).map(x => { return { x: x.x + 0.1, y: x.z - 0.25, z: x.y, data: x }; }), true));
-    scene.add(createInstancedMesh(smallBox, material_tresors, (data.tresors ?? []).map(x => { return { x: x.x, y: x.z + 0.1, z: x.y - 0.25, data: x }; })));
+    data.groups.trolls.mesh=createInstancedMesh(smallBox, material_trolls, (data.trolls ?? []).map(x => { return { x: x.x - 0.25, y: x.z, z: x.y, data: x }; }))
+    data.groups.trolls.color=material_trolls.color;
+    scene.add(data.groups.trolls.mesh);
+    data.groups.monstres.mesh=createInstancedMesh(smallBox, material_monstres, (data.monstres ?? []).map(x => { return { x: x.x + 0.1, y: x.z - 0.25, z: x.y, data: x }; }))
+    data.groups.monstres.color=material_monstres.color;
+    scene.add(data.groups.monstres.mesh);
+    data.groups.tresors.mesh=createInstancedMesh(smallBox, material_tresors, (data.tresors ?? []).map(x => { return { x: x.x, y: x.z + 0.1, z: x.y - 0.25, data: x }; }))
+    data.groups.tresors.color=material_tresors.color;
+    scene.add(data.groups.tresors.mesh);
 
     scene.add(createXYZGizmo({ x: 0, y: 0, z: 0 }, 100, -1, new LineMaterial({ color: 0x0000ff, linewidth: 5 })));
     scene.add(createXYZGizmo({ x: origin.x, y: origin.z, z: origin.y }, 5, 1, new LineMaterial({ color: 0xff00ff, linewidth: 2 })));
