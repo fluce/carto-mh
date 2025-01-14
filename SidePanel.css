@@ -35,6 +35,7 @@
 #side-panel-content .legend ul {
   list-style: none;
   padding-inline-start: 10px;
+  cursor: pointer;
 }
 
 #side-panel-content .legend ul li {
