@@ -7,5 +7,8 @@ var url=`https://sp.mountyhall.com/SP_Vue2.php?Numero=${id}&Motdepasse=${secret}
 
 const data=await fetchAndDecode(url);
 
+if (!fss.existsSync('public'))
+    await fs.mkdir('public');
+
 await fs.writeFile('public/view.data', data);
 

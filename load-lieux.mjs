@@ -10,6 +10,9 @@ const nameMap = {
 
 const raccourcis=["Croisée des cavernes","Sanctuaire","Campement","Gouffre","Caverne","Grotte","Tombe","Rocher","Lac souterrain"];
 
+if (!fss.existsSync('public'))
+    await fs.mkdir('public');
+
 loadLieux(-3);
 loadLieux(undefined);
 
