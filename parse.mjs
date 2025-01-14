@@ -4,7 +4,7 @@ import _ from 'lodash';
 const trolls=await getTrollsData();
 
 async function getRawData() {
-    const res=await fetch('/view.data');
+    const res=await fetch('view.data');
     const lines=(await res.text()).split('\n');
     return lines;
 }
@@ -89,7 +89,7 @@ async function getDataInner(type) {
 export const getData=memoize(getDataInner, index.indexer);
 
 export async function getRefData(type) {
-    const url=`/${type}.csv`;
+    const url=`${type}.csv`;
     console.dir(url);
     const res=await fetch(url);
     const lines=(await res.text()).split('\n');
@@ -100,7 +100,7 @@ export async function getRefData(type) {
 }
 
 export async function getTrollsData(type) {
-    const url=`/trolls.data`;
+    const url=`trolls.data`;
     const res=await fetch(url);
     const lines=(await res.text()).split('\n');
     const ret=lines.map(x=>x.split(';')).map(x=>{
