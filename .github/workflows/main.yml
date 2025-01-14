@@ -21,10 +21,14 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Setup Config
+      run: cp config-env.mjs config.mjs
+
     - name: Get data
       run: |
         node ./load-lieux.mjs
         node ./load-trolls.mjs
+        node ./load.mjs
 
     - name: Build the app
       run: npm run build
