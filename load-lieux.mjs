@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import fse from 'fs';
+import fss from 'fs';
 import { JSDOM } from 'jsdom';
 import { fetchAndDecode } from './utils.mjs';
 
@@ -57,7 +57,7 @@ async function loadLieux(typeLieu) {
 async function getData(typeLieu) {
 
     const filename=`public/data-${nameMap[typeLieu]}.json`;
-    if (fse.existsSync(filename)) {
+    if (fss.existsSync(filename)) {
         console.log("Loading from cache");
         const data = await fs.readFile(filename, { encoding: 'utf-8' });
         return JSON.parse(data);
@@ -95,7 +95,7 @@ function parseData(html) {
 async function getRawData(typeLieu) {
     var html;
     const filename = `public/lieux-${nameMap[typeLieu]}.html`;
-    if (fse.existsSync(filename)) {
+    if (fss.existsSync(filename)) {
         console.log("Loading from cache");
         html = await fs.readFile(filename, { encoding: 'utf-8' });
     } else {

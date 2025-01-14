@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fss from 'fs';
 
 import { id, secret } from './config.mjs';
 import { fetchAndDecode } from './utils.mjs';
