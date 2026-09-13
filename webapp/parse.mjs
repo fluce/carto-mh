@@ -1,10 +1,10 @@
-import { fetchAndDecode } from './utils.mjs';
+import { fetchAndDecode } from '../utils.mjs';
 import _ from 'lodash';
 
 const trolls=await getTrollsData();
 
 async function getRawData() {
-    const res=await fetch('view.data');
+    const res=await fetch('data/view.data');
     const lines=(await res.text()).split('\n');
     return lines;
 }
@@ -89,18 +89,18 @@ async function getDataInner(type) {
 export const getData=memoize(getDataInner, index.indexer);
 
 export async function getRefData(type) {
-    const url=`${type}.csv`;
+    const url=`data/${type}.csv`;
     console.dir(url);
     const res=await fetch(url);
     const lines=(await res.text()).split('\n');
-    //console.dir(lines);
+    console.dir(lines);
     const ret=lines.map(x=>x.split(/(?<!\\);/)).map(x=>{return { id: parseInt(x[0]), name: x[1].replaceAll("\\;",";"), x: parseInt(x[2]), y: parseInt(x[3]), z: parseInt(x[4]), type: x[6]=="raccourci"?"raccourcis":"lieux", typeLieu:x[5] };});
     console.dir(ret);
     return ret;
 }
 
 export async function getTrollsData(type) {
-    const url=`trolls.data`;
+    const url=`data/trolls.data`;
     const res=await fetch(url);
     const lines=(await res.text()).split('\n');
     const ret=lines.map(x=>x.split(';')).map(x=>{

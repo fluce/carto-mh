@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import { getData } from './parse.mjs';
-import { merge } from './utils.mjs';
+import { merge } from '../utils.mjs';
 
 export async function loadData(viewException, ...layers) {
     const data=merge(

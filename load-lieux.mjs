@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import fss from 'fs';
 import { JSDOM } from 'jsdom';
-import { fetchAndDecode } from './utils.mjs';
+import { fetchAndDecode, utf8decoder, decoder } from './utils.mjs';
 
 const nameMap = {
     [undefined]: "all",
@@ -101,7 +101,7 @@ async function getRawData(typeLieu) {
     } else {
         console.log("Loading from server");
         const url = `http://trolls.ratibus.net/mountyhall/lieux.php?search=position&orderBy=distance&posx=&posy=&posn=&typeLieu=${typeLieu}`;
-        html = await fetchAndDecode(url);
+        html = await fetchAndDecode(url, typeLieu === undefined ? decoder : utf8decoder);
         await fs.writeFile(filename, html);
     }
     return html;
