@@ -18,8 +18,20 @@ jobs:
       with:
         node-version: '20'
 
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Install wasm-pack
+      run: cargo install wasm-pack
+
     - name: Install dependencies
       run: npm install
+
+    - name: Build WASM module
+      working-directory: findpath_wasm
+      run: wasm-pack build --target web --release --out-dir pkg
 
     - name: Setup Config
       run: cp config-env.mjs config.mjs
@@ -29,9 +41,7 @@ jobs:
         MH_USER_ID: ${{ secrets.MH_USER_ID }}
         MH_USER_SECRET: ${{ secrets.MH_USER_SECRET }}
       run: |
-        node ./load-lieux.mjs
-        node ./load-trolls.mjs
-        node ./load.mjs
+        node ./loader/index.mjs
 
     - name: Build the app
       run: npm run build
