@@ -60,7 +60,7 @@ export function createInstancedMesh(geometry, material, d, log=false) {
             console.log("Hello",j,d[j]);
         matrix.makeTranslation(d[j].x, d[j].y, d[j].z);
         mesh.setMatrixAt(j, matrix);
-        mesh.set
     }
+    mesh.instanceMatrix.needsUpdate = true;
     return mesh;
 }

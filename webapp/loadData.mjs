@@ -1,11 +1,13 @@
 import * as _ from 'lodash';
-import { getData } from './parse.mjs';
-import { merge } from '../utils.mjs';
+import { index, getData } from './parse.mjs';
+import { merge } from '../loader/utils.mjs';
 
 export async function loadData(viewException, ...layers) {
+    console.log("Loading data with viewException:", viewException, "and layers:", layers);
     const data=merge(
         ...[
             viewException ? _.omit(await getData("view"), viewException) : [],
+            await getData("inventory"),
             ...await Promise.all(layers.map(x => getData(x)))
         ]
     );
@@ -19,6 +21,13 @@ export async function loadData(viewException, ...layers) {
                 .map(([k,v]) => [k,{items:v, autocolor: true}])
         )
     };
-        
+    console.log("Loaded data:", data); 
+    for (const c of data.tgv) {
+        const lieuItem = index.get(c.id);
+        if (lieuItem) { 
+            c.refLieu = lieuItem;
+        }
+        console.log("TGV item:", c);
+    }
     return data;
 }

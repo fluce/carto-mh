@@ -1,23 +1,23 @@
 import MyThree from './Three'
 import SidePanel from './SidePanel'
+import PathFindingPanel from './PathFindingPanel'
 import './App.css'
-import { useState } from 'react';
-import { SidePanelContext } from './SidePanelContext.mjs';
+import { DataProvider } from './DataContext.mjs';
+import { PathFindingProvider } from './PathFindingProvider'
 
 function App() {
-  const [count, setCount] = useState(0)
-  const [selection, setSelection] = useState(null)
-  const [legend, setLegend] = useState(null)
-
   return (
-    <SidePanelContext.Provider value={{ selection, setSelection, legend, setLegend }}>
-    <div id="app">
-      <SidePanel />
-      <div id="my-three">
-        <MyThree />
-      </div>
-    </div>
-    </SidePanelContext.Provider>
+    <DataProvider>
+      <PathFindingProvider>
+        <div id="app">
+          <SidePanel />
+          <PathFindingPanel />
+          <div id="my-three">
+            <MyThree />
+          </div>
+        </div>
+      </PathFindingProvider>
+    </DataProvider>
   )
 }
 

@@ -69,8 +69,23 @@ export async function createScene(data, path) {
     scene.add(createXYZGizmo({ x: 0, y: 0, z: 0 }, 100, -1, new LineMaterial({ color: 0x0000ff, linewidth: 5 })));
     scene.add(createXYZGizmo({ x: origin.x, y: origin.z, z: origin.y }, 5, 1, new LineMaterial({ color: 0xff00ff, linewidth: 2 })));
     
-    if ((path??[]).length>1)
-        scene.add(createPath(path, new LineMaterial({ color: 0xff0000, linewidth: 2 })));
+    let pathLine;
+    const pathMaterial = new LineMaterial({ color: 0xff0000, linewidth: 2 });
+
+    function updatePath(nextPath) {
+        if (pathLine) {
+            scene.remove(pathLine);
+            pathLine.geometry.dispose();
+        }
+        if ((nextPath ?? []).length > 1) {
+            pathLine = createPath(nextPath, pathMaterial);
+            scene.add(pathLine);
+        } else {
+            pathLine = undefined;
+        }
+    }
+
+    updatePath(path);
 
     scene.add(new THREE.GridHelper(200, 10));
 
@@ -79,5 +94,5 @@ export async function createScene(data, path) {
     selectionGizmo.visible=false;
     scene.add(selectionGizmo);
 
-    return { scene, origin, update: () => { /*cube.rotation.y += 0.01*/ } };
+    return { scene, origin, update: () => { /*cube.rotation.y += 0.01*/ }, updatePath };
 }

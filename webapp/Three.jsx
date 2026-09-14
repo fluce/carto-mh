@@ -1,21 +1,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import { useEffect, useRef, useState, useContext } from "react";
+import { useEffect, useRef } from "react";
 import { createScene } from './createScene.mjs';
-import { loadData } from './loadData.mjs';
-import { index } from './parse.mjs';
-import { SidePanelContext } from './SidePanelContext.mjs';
-import { set } from 'lodash';
+import { useData } from './DataContext.mjs';
+import { usePathFinding } from './PathFindingContext.mjs';
 
 function MyThree() {
   const refContainer = useRef(null);
-  const [ state, setState ] = useState(false);
-  const { setSelection, setLegend } = useContext(SidePanelContext);
+    const pathUpdater = useRef(null);
+        const { setHighlighted, setSelection, index } = useData();
+    const { data, path } = usePathFinding();
 
   useEffect(() => {
-    if (state) return;
-    setState(true);
+        if (!data) return;
     async function loadThree() {
         if (ignore) return;
         // === THREE.JS CODE START ===
@@ -32,11 +30,25 @@ function MyThree() {
 
         const raycaster = new THREE.Raycaster();
         const pointer = new THREE.Vector2();
+        let pointerDownPosition = null;
+        let didDrag = false;
+        renderer.domElement.addEventListener('pointerdown', event => {
+            pointerDownPosition = { x: event.clientX, y: event.clientY };
+            didDrag = false;
+        });
         renderer.domElement.addEventListener('pointermove',
             event => {
+                if (pointerDownPosition) {
+                    const deltaX = event.clientX - pointerDownPosition.x;
+                    const deltaY = event.clientY - pointerDownPosition.y;
+                    didDrag = didDrag || Math.hypot(deltaX, deltaY) > 5;
+                }
                 pointer.x = ((event.clientX-renderer.domElement.offsetLeft) / renderer.domElement.offsetWidth) * 2 - 1;
                 pointer.y = -((event.clientY-renderer.domElement.offsetTop) / renderer.domElement.offsetHeight) * 2 + 1;
             });
+        renderer.domElement.addEventListener('pointerup', () => {
+            pointerDownPosition = null;
+        });
 
         const camera = new THREE.PerspectiveCamera(75, renderer.domElement.offsetWidth / renderer.domElement.offsetHeight, 0.1, 1000);
         camera.position.z = 30;
@@ -63,17 +75,15 @@ function MyThree() {
         onWindowResize();
 
 
-        const data = await loadData(["lieux"], "TGV", "all");
-        const path = [];
-        //const { path, cost }= findPath(data, index, data.origine[0], { x: 65, y: 0, z: 0 });
-        //console.log("Cost", cost);
-        //console.log("Length", path.length);
-
-        const { scene, origin, update } = await createScene(data, path);
-
-        setLegend(data.groups);
+        const { scene, updatePath } = await createScene(data, path);
+        pathUpdater.current = updatePath;
 
         var currentData = null;
+        renderer.domElement.addEventListener('click', () => {
+            if (!didDrag && currentData) {
+                setSelection(currentData);
+            }
+        });
 
         const animate = function () {
             controls.update();
@@ -87,15 +97,13 @@ function MyThree() {
                         scene.selectionGizmo.position.set(currentData.x, currentData.z, currentData.y);
                         scene.selectionGizmo.visible=true;
                         selection.innerHTML = JSON.stringify(currentData);
-                        console.log(currentData);
-                        var dataAtPoint = index.get(currentData);
-                        console.log(dataAtPoint);
-                        setSelection({currentData, dataAtPoint});
+                        setHighlighted(currentData);
                     } 
                 }
                 else
                 {
                     currentData = null;
+                    setHighlighted(null);
                     selection.innerHTML = "&nbsp;";
                 }
             }
@@ -108,8 +116,13 @@ function MyThree() {
     loadThree();
     return () => {
       ignore = true;
+            pathUpdater.current = null;
     }
-  }, []);
+    }, [data]);
+
+    useEffect(() => {
+        pathUpdater.current?.(path);
+    }, [path]);
   return (
     <div id="my3dcontainer" ref={refContainer}></div>
 

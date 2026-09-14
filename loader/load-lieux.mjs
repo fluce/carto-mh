@@ -1,7 +1,8 @@
-import fs from 'fs/promises';
-import fss from 'fs';
+import fs from 'node:fs/promises';
+import fss from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { fetchAndDecode, utf8decoder, decoder } from './utils.mjs';
+import { targetDir } from './config.mjs';
 
 const nameMap = {
     [undefined]: "all",
@@ -10,53 +11,52 @@ const nameMap = {
 
 const raccourcis=["Croisée des cavernes","Sanctuaire","Campement","Gouffre","Caverne","Grotte","Tombe","Rocher","Lac souterrain"];
 
-if (!fss.existsSync('public'))
-    await fs.mkdir('public');
+export async function loadLocations(typeLieu) {
+    if (!fss.existsSync(targetDir))
+        await fs.mkdir(targetDir);
 
-loadLieux(-3);
-loadLieux(undefined);
+    await loadLieux(-3);
+    await loadLieux(undefined);
+}
 
 async function loadLieux(typeLieu) {
     const data = await getData(typeLieu);
 
 
-    var r=[];
-    for(var j of Object.keys(data)) {
-        for(var d of data[j]) d.type=j;
+    const r=[];
+    for(const j of Object.keys(data)) {
+        for(const d of data[j]) d.type=j;
         console.log(j);
         console.dir(data[j][0]);
 
         if (j=='Divers' || j=='Lac') {
-            for(var i of raccourcis) {
-                var dt=data[j].filter(x=>x.name.startsWith(i));
-                //console.log(i);
-                //console.dir(dt[0]);
-                for(var d of dt) d.type=i;
-                //console.dir(data[j].filter(x=>x.name.startsWith(i))[0])
+            for(const i of raccourcis) {
+                const dt=data[j].filter(x=>x.name.startsWith(i));
+                for(const d of dt) d.type=i;
                 r.push(...dt);
                 if (dt.length>0) {
-                    fs.writeFile(`public/${i}.json`, JSON.stringify(dt.map(x=>{delete x.lastUpdate; return x;})));
-                    fs.writeFile(`public/${i}.csv`, dt.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+                    fs.writeFile(`${targetDir}/${i}.json`, JSON.stringify(dt.map(x=>{delete x.lastUpdate; return x;})));
+                    fs.writeFile(`${targetDir}/${i}.csv`, dt.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
                 }
             }
         }
-        fs.writeFile(`public/${j}.json`, JSON.stringify(data[j].map(x=>{delete x.lastUpdate; return x;})));
-        fs.writeFile(`public/${j}.csv`, data[j].map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+        fs.writeFile(`${targetDir}/${j}.json`, JSON.stringify(data[j].map(x=>{delete x.lastUpdate; return x;})));
+        fs.writeFile(`${targetDir}/${j}.csv`, data[j].map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
     }
 
     if (r.length>0) {
-        fs.writeFile(`public/Raccourcis.json`, JSON.stringify(r.map(x=>{delete x.lastUpdate; return x;})));
-        fs.writeFile(`public/Raccourcis.csv`, r.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type};raccourci`).join('\n'));
+        fs.writeFile(`${targetDir}/Raccourcis.json`, JSON.stringify(r.map(x=>{delete x.lastUpdate; return x;})));
+        fs.writeFile(`${targetDir}/Raccourcis.csv`, r.map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type};raccourci`).join('\n'));
     }
 
-    fs.writeFile(`public/${nameMap[typeLieu]}.json`, JSON.stringify(data));
-    fs.writeFile(`public/${nameMap[typeLieu]}.csv`, Object.values(data).flatMap(x=>x).map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
+    fs.writeFile(`${targetDir}/${nameMap[typeLieu]}.json`, JSON.stringify(data));
+    fs.writeFile(`${targetDir}/${nameMap[typeLieu]}.csv`, Object.values(data).flat().map(x=>`${x.id};${x.name.replaceAll(";","\\;")};${x.x};${x.y};${x.z};${x.type}`).join('\n'));
 }
 
 
 async function getData(typeLieu) {
 
-    const filename=`public/data-${nameMap[typeLieu]}.json`;
+    const filename=`${targetDir}/data-${nameMap[typeLieu]}.json`;
     if (fss.existsSync(filename)) {
         console.log("Loading from cache");
         const data = await fs.readFile(filename, { encoding: 'utf-8' });
@@ -79,7 +79,7 @@ function parseData(html) {
     for (var i of table[0].getElementsByTagName("tr")) {
         var cells = Array.from(i.getElementsByTagName("td")).map(x => x.textContent);
         if (cells.length > 0) {
-            const coords = cells[3].substring(1, cells[3].length - 1).split(',').map(x => parseInt(x));
+            const coords = cells[3].substring(1, cells[3].length - 1).split(',').map(x => Number.parseInt(x));
             const d = { type: cells[0], id: cells[1], name: cells[2], x: coords[0], y: coords[1], z: coords[2], lastUpdate: cells[4] };
             data[d.type] = data[d.type] ?? [];
             data[d.type].push(d);
@@ -94,7 +94,7 @@ function parseData(html) {
 
 async function getRawData(typeLieu) {
     var html;
-    const filename = `public/lieux-${nameMap[typeLieu]}.html`;
+    const filename = `${targetDir}/lieux-${nameMap[typeLieu]}.html`;
     if (fss.existsSync(filename)) {
         console.log("Loading from cache");
         html = await fs.readFile(filename, { encoding: 'utf-8' });

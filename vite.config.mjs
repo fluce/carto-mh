@@ -24,6 +24,9 @@ export default defineConfig({
     },
   }, react()],
   base: BASE_URL,
+  worker: {
+    format: 'es',
+  },
   build: {
     target: ['chrome89', 'edge89', 'firefox89', 'safari15', 'node15'],
     outDir: '../dist',

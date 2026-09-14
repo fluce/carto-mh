@@ -13,7 +13,7 @@
   width: 40px;
 }
 
-#side-panel button {
+#side-panel > button {
   background: none;
   border: none;
   cursor: pointer;
@@ -22,6 +22,85 @@
   left: 10px;
   z-index: 1;
   font-size: 24px;
+}
+
+#side-panel-content .section-toggle {
+  position: static;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 1.17em;
+  font-weight: bold;
+  text-align: left;
+}
+
+#side-panel-content .selection {
+  padding-top: 8px;
+}
+
+#side-panel-content .selection-content {
+  padding: 4px 10px 12px;
+}
+
+#side-panel-content .selection-summary,
+#side-panel-content .coordinate-objects li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#side-panel-content .selection-summary .color-box,
+#side-panel-content .coordinate-objects .color-box {
+  flex: 0 0 12px;
+  margin-top: 3px;
+}
+
+#side-panel-content .selection-summary strong,
+#side-panel-content .coordinate-objects strong,
+#side-panel-content .coordinate-objects small {
+  display: block;
+}
+
+#side-panel-content .selection-type,
+#side-panel-content .coordinate-objects small {
+  display: block;
+  color: #666;
+  font-size: 0.8rem;
+}
+
+#side-panel-content .selection-details {
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+#side-panel-content .selection-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+#side-panel-content .selection-details dt {
+  color: #666;
+}
+
+#side-panel-content .selection-details dd {
+  margin: 0;
+  text-align: right;
+}
+
+#side-panel-content .selection-content h3 {
+  margin: 12px 0 6px;
+  font-size: 0.9rem;
+}
+
+#side-panel-content .coordinate-objects {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 #side-panel.collapsed button {

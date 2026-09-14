@@ -13,9 +13,10 @@ export function MaterialHandler() {
             type,
             i,
             getMaterial: () => new THREE.MeshPhongMaterial({
-                color: new THREE.Color().setHSL(1.0 * i / Object.values(all).length, 0.5, 0.5),
-                transparent: true,
-                opacity: 0.5
+                color: new THREE.Color().setHSL(i / Object.values(all).length, 0.5, 0.5),
+                transparent: false,
+                opacity: 1,
+                depthWrite: true,
             }
             )
         };

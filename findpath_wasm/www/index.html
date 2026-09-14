@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>A* 3D WASM (201x201x101)</title>
+</head>
+<body>
+    <h1>Pathfinding A* 3D WASM (201x201x101)</h1>
+    <p>Consultez la console de votre navigateur (F12) pour voir les métriques de performance.</p>
+
+    <script type="module">
+        import init, { PathFinder3D } from '../pkg/findpath_wasm.js';
+
+        async function run() {
+            await init();
+
+            console.log("Initialisation du PathFinder 3D...");
+            const pathfinder = new PathFinder3D(-100, 100, -100, 100, -100, 0);
+
+            const start = { x: -100, y: -100, z: -100 };
+            const target = { x: 100, y: 100, z: 0 };
+
+            // Ajout d'un réseau de raccourcis
+            // Le coût du raccourci est personnalisable, y compris avec des décimales.
+            pathfinder.add_shortcut({ x: -90, y: -90, z: -90 }, { x: 80, y: 80, z: -10 }, 4);
+
+            // Ajout d'un mur d'obstacles sur le chemin direct
+            for (let y = -100; y <= 50; y++) {
+                for (let z = -100; z <= -1; z++) {
+                    pathfinder.set_obstacle(50, y, z, true);
+                }
+            }
+
+            console.time("A* WASM Calcul");
+            const path = pathfinder.find_path(start, target);
+            console.timeEnd("A* WASM Calcul");
+
+            console.log(`Chemin trouvé (${path.length} étapes):`, path);
+            const totalcost = path.reduce((sum, step) => sum + step.cost, 0);
+            console.log(`Total cost: ${totalcost}`);
+        }
+
+        run();
+    </script>
+</body>
+</html>
