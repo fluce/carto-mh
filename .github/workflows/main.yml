@@ -33,9 +33,6 @@ jobs:
       working-directory: findpath_wasm
       run: wasm-pack build --target web --release --out-dir pkg
 
-    - name: Setup Config
-      run: cp config-env.mjs config.mjs
-
     - name: Get data
       env:
         MH_USER_ID: ${{ secrets.MH_USER_ID }}
