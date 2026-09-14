@@ -30,25 +30,8 @@ export function createPath(path, materialLine) {
 }
 
 export function createXYZCube(size, materialLine) {
-    const segments = [];
-    segments.push([0,0,0]);
-    segments.push([0,0,size]);
-    segments.push([0,0,0]);
-    segments.push([0,size,0]);
-    segments.push([0,0,0]);
-    segments.push([size,0,0]);
-    segments.push([size,size,size]);
-    segments.push([0,size,size]);
-    segments.push([size,size,size]);
-    segments.push([size,0,size]);
-    segments.push([size,size,size]);
-    segments.push([size,size,0]);
-    var geometrySegments = new LineSegmentsGeometry();
-    const ts=segments.flat().map(x=>x-size/2);
-    console.log("ts");
-    console.dir(ts);
-    geometrySegments.setPositions(ts);
-    return new LineSegments2(geometrySegments,materialLine);
+    const geometry = new THREE.BoxGeometry(size, size, size);
+    return new THREE.Mesh(geometry, materialLine);
 }
 
 export function createInstancedMesh(geometry, material, d, log=false) {

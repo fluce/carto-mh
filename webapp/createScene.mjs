@@ -89,7 +89,13 @@ export async function createScene(data, path) {
 
     scene.add(new THREE.GridHelper(200, 10));
 
-    const selectionGizmo=createXYZCube(1, new LineMaterial({ color: 0xffffff, linewidth: 3 }))
+    const selectionGizmo = createXYZCube(1, new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+    }));
     scene.selectionGizmo=selectionGizmo;
     selectionGizmo.visible=false;
     scene.add(selectionGizmo);

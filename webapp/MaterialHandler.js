@@ -12,13 +12,16 @@ export function MaterialHandler() {
         {
             type,
             i,
-            getMaterial: () => new THREE.MeshPhongMaterial({
+            getMaterial: () => new THREE.MeshPhysicalMaterial({
                 color: new THREE.Color().setHSL(i / Object.values(all).length, 0.5, 0.5),
-                transparent: false,
-                opacity: 1,
-                depthWrite: true,
-            }
-            )
+                transparent: true,
+                opacity: 0.8,
+                transmission: 0.5,
+                roughness: 0.1,
+                thickness: 0.5,
+                ior: 1.45,
+                depthWrite: true
+            })
         };
         return all[type];
     }
