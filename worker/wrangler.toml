@@ -1,0 +1,7 @@
+name = "carto-mh"
+main = "index.js"
+compatibility_date = "2026-09-19"
+
+[vars]
+# Comma-separated exact origins allowed to call the relay.
+ALLOWED_ORIGINS = "https://fluce.github.io,http://localhost:5173"
