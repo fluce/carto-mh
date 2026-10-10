@@ -1,8 +1,9 @@
 {
   "dependencies": {
     "@datastructures-js/priority-queue": "^6.3.2",
+    "cheerio": "^1.1.2",
     "dotenv": "^17.4.2",
-    "jsdom": "^25.0.1",
+    "idb": "^8.0.3",
     "lodash": "^4.17.21",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

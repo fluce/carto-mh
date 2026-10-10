@@ -1,4 +1,3 @@
-import * as _ from 'lodash';
 import { index, getData } from './parse.mjs';
 import { merge } from '../loader/utils.mjs';
 
@@ -6,7 +5,7 @@ export async function loadData(viewException, ...layers) {
     console.log("Loading data with viewException:", viewException, "and layers:", layers);
     const data=merge(
         ...[
-            viewException ? _.omit(await getData("view"), viewException) : [],
+            viewException ? Object.fromEntries(Object.entries(await getData("view")).filter(([k]) => !viewException.includes(k))) : [],
             await getData("inventory"),
             ...await Promise.all(layers.map(x => getData(x)))
         ]

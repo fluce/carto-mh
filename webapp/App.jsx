@@ -1,6 +1,7 @@
 import MyThree from './Three'
 import SidePanel from './SidePanel'
 import PathFindingPanel from './PathFindingPanel'
+import LoginDialog from './LoginDialog'
 import './App.css'
 import { DataProvider } from './DataContext.mjs';
 import { PathFindingProvider } from './PathFindingProvider'
@@ -8,6 +9,7 @@ import { PathFindingProvider } from './PathFindingProvider'
 function App() {
   return (
     <DataProvider>
+      <LoginDialog />
       <PathFindingProvider>
         <div id="app">
           <SidePanel />

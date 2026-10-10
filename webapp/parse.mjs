@@ -1,10 +1,14 @@
 import { createIndex } from './dataIndex.mjs';
+import { getToken } from './dataWorker.mjs';
+
 
 let trollsPromise;
 let inventoryPromise;
 
-async function getRawData() {
-    const res=await fetch('data/view.data');
+async function getRawViewData() {
+    const res=await fetch('api/view', { method: 'GET', headers: {
+        "Authorization": `Bearer ${getToken()}`
+    } });
     const lines=(await res.text()).split('\n');
     return lines;
 }
@@ -59,8 +63,10 @@ export async function getRefData(type) {
 }
 
 export async function getTrollsData(type) {
-    const url=`data/trolls.data`;
-    const res=await fetch(url);
+    const url=`api/trolls`;
+    const res=await fetch( url, { method: 'GET', headers: {
+        "Authorization": `Bearer ${getToken()}`
+    } });
     const lines=(await res.text()).split('\n');
     const ret=lines.map(x=>x.split(';')).map(x=>{
         return { 
@@ -85,7 +91,7 @@ export async function getViewData() {
     if (!trollsPromise)
         trollsPromise = getTrollsData();
     const trolls = await trollsPromise;
-    const lines=await getRawData();
+    const lines=await getRawViewData();
     const parsedData={};
     let currentSection=null;
     for(const i of lines) {

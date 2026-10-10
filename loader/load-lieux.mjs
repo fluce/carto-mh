@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 import { fetchAndDecode, utf8decoder, decoder } from './utils.mjs';
 import { targetDir } from './config.mjs';
 
@@ -69,31 +69,8 @@ async function getData(typeLieu) {
     return data;
 }
 
-function parseData(html) {
-    const doc = new JSDOM(html);
-    const table = doc.window.document.querySelectorAll('#lieux');
-    console.dir(table[0].getElementsByTagName("tr")[1].getElementsByTagName("td")[1].textContent);
-    /*console.log(table.childElementCount);*/
-    const data = {};
-    var counter = 0;
-    for (var i of table[0].getElementsByTagName("tr")) {
-        var cells = Array.from(i.getElementsByTagName("td")).map(x => x.textContent);
-        if (cells.length > 0) {
-            const coords = cells[3].substring(1, cells[3].length - 1).split(',').map(x => Number.parseInt(x));
-            const d = { type: cells[0], id: cells[1], name: cells[2], x: coords[0], y: coords[1], z: coords[2], lastUpdate: cells[4] };
-            data[d.type] = data[d.type] ?? [];
-            data[d.type].push(d);
-            //console.dir(d);
-            if (++counter % 100 == 0) {
-                console.log(counter);
-            }
-        }
-    }
-    return data;
-}
-
 async function getRawData(typeLieu) {
-    var html;
+    let html;
     const filename = `${targetDir}/lieux-${nameMap[typeLieu]}.html`;
     if (fss.existsSync(filename)) {
         console.log("Loading from cache");

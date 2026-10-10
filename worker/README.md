@@ -8,6 +8,7 @@ From this directory:
 npx wrangler login
 npx wrangler secret put MH_USER_ID
 npx wrangler secret put MH_USER_SECRET
+npx wrangler secret put CREDENTIALS_ENCRYPTION_KEY # openssl rand -base64 32
 npx wrangler deploy
 ```
 
@@ -18,3 +19,12 @@ https://<worker-subdomain>.workers.dev/vue
 ```
 
 The client should `GET` that endpoint instead of posting directly to `sp.mountyhall.com`.
+
+To create a user token, send `POST /api/token` with a JSON body containing `mh_user_id` and `mh_user_secret`.
+The Worker validates the credentials against `SP_Profil2.php`, then stores them in the `USER_DATA` KV namespace
+under `token:<token>` and returns the generated 128-bit token.
+
+`mh_user_secret` is encrypted with AES-256-GCM before it is stored. `CREDENTIALS_ENCRYPTION_KEY`
+must be a base64-encoded random 32-byte key and must remain stable to allow future decryption.
+
+For local development, set `TOKEN_VALIDATION_MOCK=true` to skip the upstream validation request.

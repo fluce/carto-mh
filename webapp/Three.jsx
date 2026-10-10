@@ -9,11 +9,12 @@ import { usePathFinding } from './PathFindingContext.mjs';
 function MyThree() {
   const refContainer = useRef(null);
     const pathUpdater = useRef(null);
-        const { setHighlighted, setSelection, index } = useData();
-    const { data, path } = usePathFinding();
+        const { setHighlighted, setSelection, index, data } = useData();
+    const { path } = usePathFinding();
 
   useEffect(() => {
-        if (!data) return;
+    console.log("MyThree", index);
+        if (!index) return;
     async function loadThree() {
         if (ignore) return;
         // === THREE.JS CODE START ===
@@ -74,8 +75,7 @@ function MyThree() {
 
         onWindowResize();
 
-
-        const { scene, updatePath } = await createScene(data, path);
+        const { scene, updatePath } = await createScene(data, index, path);
         pathUpdater.current = updatePath;
 
         var currentData = null;
@@ -118,7 +118,7 @@ function MyThree() {
       ignore = true;
             pathUpdater.current = null;
     }
-    }, [data]);
+    }, [index]);
 
     useEffect(() => {
         pathUpdater.current?.(path);

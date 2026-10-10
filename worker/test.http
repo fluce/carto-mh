@@ -1,0 +1,22 @@
+
+# @name createtoken
+POST http://localhost:8787/api/token
+Content-Type: application/json; charset=utf-8
+
+{
+    "mh_user_id": "{{$dotenv MH_USER_ID}}",
+    "mh_user_secret": "{{$dotenv MH_USER_SECRET}}"
+}
+
+###
+
+GET http://localhost:8787/api/view
+Authorization: Bearer {{$dotenv SESSION}}
+
+
+
+### 1789897738022
+
+POST http://localhost:8787/api/monsters
+
+[{"id":8113218,"name":"Ombre [Naissante]"},{"id":8103465,"name":"Capitan [Récent]"}]

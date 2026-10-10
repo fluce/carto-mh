@@ -62,7 +62,7 @@ export function PathFindingProvider({ children }) {
 
   useEffect(() => {
     if (!data || !index || !pathOrigin) return;
-    findPath(pathOrigin, { x: 65, y: 0, z: 0 });
+    //findPath(pathOrigin, { x: 65, y: 0, z: 0 });
   }, [data, index, pathOrigin, findPath]);
 
   const contextValue = useMemo(() => ({

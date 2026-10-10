@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './SidePanel.css';
-import { useData } from './DataContext.mjs';
+import { callWorker, useData } from './DataContext.mjs';
 
 function formatLegendColor(color) {
   if (color?.getHexString) {
@@ -26,15 +26,129 @@ function getObjectLabel(item) {
   return item.name || item.typeLieu || item.type || 'Objet';
 }
 
+function renderObjectLabel(item) {
+  const label = getObjectLabel(item);
+  const monsterName = item.type === 'monstres' && label.match(/^(.*?)(\s+\[[^\]]+\])$/);
+  if (!monsterName) {
+    return label;
+  }
+  return <>{monsterName[1]}<span className="monster-epithet">{monsterName[2]}</span></>;
+}
+
+function getMonsterLevel(niv) {
+  if (niv.min === niv.max) {
+    return `Niveau ${niv.min}`;
+  }
+  return `Niveau ${niv.min}-${niv.max}`;
+}
+
+const MONSTER_DETAIL_GROUPS = [
+  { title: 'Identity', fields: ['fam', 'niv', 'vit', 'sangf'] },
+  { title: 'Abilities', fields: ['pouv', 'portpouv', 'nb_att', 'attd', 'attm', 'vole', 'vlc'] },
+  { title: 'Statistics', fields: ['pv', 'bless', 'att', 'esq', 'deg', 'reg', 'armP', 'armM', 'arm', 'MM', 'RM', 'vue', 'duree'] },
+  { title: 'Record', fields: ['id', 'nom', 'timegmt', 'nCdM', 'Mode'] },
+];
+
+const MONSTER_DETAIL_LABELS = {
+  id: 'ID',
+  nom: 'Full name',
+  fam: 'Family',
+  niv: 'Level',
+  bless: 'Injuries',
+  pouv: 'Power',
+  nb_att: 'Attacks',
+  vit: 'Speed',
+  attd: 'Att. D.',
+  attm: 'Att. M.',
+  sangf: 'Cold blood',
+  portpouv: 'Power range',
+  vole: 'Fly',
+  vlc: 'See hidden',
+  timegmt: 'Updated',
+  pv: 'Health',
+  att: 'Attack',
+  esq: 'Dodge',
+  deg: 'Damage',
+  reg: 'Regeneration',
+  armP: 'Physical armor',
+  armM: 'Magical armor',
+  arm: 'Armor',
+  MM: 'Movement',
+  RM: 'Magic resistance',
+  vue: 'Sight',
+  duree: 'Duration',
+  Mode: 'Mode',
+  nCdM: 'CdM count',
+};
+
+const MONSTER_DETAIL_FIELDS = new Set(MONSTER_DETAIL_GROUPS.flatMap(group => group.fields));
+const HIDDEN_MONSTER_DETAIL_FIELDS = new Set(['index']);
+
+function getMonsterDetailGroups(details) {
+  const groups = MONSTER_DETAIL_GROUPS
+    .map(group => ({ ...group, fields: group.fields.filter(field => details[field] !== undefined) }))
+    .filter(group => group.fields.length > 0);
+  const otherFields = Object.keys(details).filter(field =>
+    !MONSTER_DETAIL_FIELDS.has(field) && !HIDDEN_MONSTER_DETAIL_FIELDS.has(field)
+  );
+  if (otherFields.length > 0) {
+    groups.push({ title: 'Other', fields: otherFields });
+  }
+  return groups;
+}
+
+function formatDetailRange(min, max) {
+  if (min !== undefined && max !== undefined) {
+    return min === max ? String(min) : `${min}-${max}`;
+  }
+  if (min !== undefined) {
+    return `>= ${min}`;
+  }
+  if (max !== undefined) {
+    return `<= ${max}`;
+  }
+  return null;
+}
+
+function formatMonsterDetail(field, value) {
+  if (value === null || value === undefined) {
+    return 'Not available';
+  }
+  if (field === 'timegmt' && typeof value === 'number') {
+    return new Date(value * 1000).toLocaleString();
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const primary = formatDetailRange(value.min, value.max);
+    const secondary = formatDetailRange(value.min2, value.max2);
+    return [primary, secondary].filter(Boolean).join(' / ') || JSON.stringify(value);
+  }
+  return String(value);
+}
+
 function SidePanel() {
   const [isOpen, setIsOpen] = useState(true);
   const [legendOpen, setLegendOpen] = useState(true);
   const [selectionOpen, setSelectionOpen] = useState(true);
+  const [updatePending, setUpdatePending] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
+  const [selectedMonster, setSelectedMonster] = useState(null);
   const { selection, legend, index } = useData();
   const [visible, setVisible] = useState(mapLegendVisibility(legend));
 
   const togglePanel = () => {
     setIsOpen(!isOpen);
+  };
+
+  const updateData = async () => {
+    setUpdatePending(true);
+    setUpdateError(null);
+    try {
+      await callWorker('update', {});
+    } catch (error) {
+      setUpdateError(error.message);
+    } finally {
+      setUpdatePending(false);
+    }
   };
 
   const legendClick = (item) => {
@@ -58,8 +172,15 @@ function SidePanel() {
       <button onClick={togglePanel}>
         <span>{isOpen ? '✖' : '☰'}</span>
       </button>
-      {isOpen && legend && (
+      {isOpen && (
         <div id="side-panel-content">
+          <div className="data-actions">
+            <button type="button" onClick={updateData} disabled={updatePending}>
+              {updatePending ? 'Updating...' : 'Update data'}
+            </button>
+            {updateError && <p role="alert">{updateError}</p>}
+          </div>
+          { legend && (
           <div className="legend">
             <button
               type="button"
@@ -86,7 +207,7 @@ function SidePanel() {
                   ))}
               </ul>
             )}
-          </div>
+          </div>)}
           <div className="selection">
             <button
               type="button"
@@ -105,7 +226,7 @@ function SidePanel() {
                     style={{ backgroundColor: formatLegendColor(legend[getLegendKey(selection, legend)]?.color) }}
                   ></span>
                   <div>
-                    <strong>{getObjectLabel(selection)}</strong>
+                    <strong>{renderObjectLabel(selection)}</strong>
                     <span className="selection-type">{selection.typeLieu || selection.type}</span>
                   </div>
                 </div>
@@ -115,16 +236,33 @@ function SidePanel() {
                 </dl>
                 <h3>Objects at these coordinates</h3>
                 <ul className="coordinate-objects">
-                  {index.get(selection).map((x, ix) => { console.log(x, ix); return x; }).map((item, itemIndex) => (
+                  {index.get(selection).map((item, itemIndex) => (
                     <li key={`${item.type}-${item.id ?? itemIndex}`}>
                       <span
                         className="color-box"
                         style={{ backgroundColor: formatLegendColor(legend[getLegendKey(item, legend)]?.color) }}
                       ></span>
-                      <span>
-                        <strong>{getObjectLabel(item)}</strong>
-                        <small>{item.typeLieu || item.type}</small>
+                      <span className="coordinate-object-content">
+                        <strong>{renderObjectLabel(item)}</strong>
+                        <small>{item.typeLieu || item.type} - {item.id}</small>
+                        { item.type === "trolls" && <small> 
+                            { item.race } - { item.level }
+                          </small>}
+                        { item.type === 'monstres' && (item.details?.fam || item.details?.niv) && <small>
+                          {[item.details.fam, item.details.niv && getMonsterLevel(item.details.niv)].filter(Boolean).join(' - ')}
+                          </small>}
                       </span>
+                      {item.type === 'monstres' && (
+                        <button
+                          type="button"
+                          className="coordinate-object-action"
+                          aria-label={`Show details for ${item.name || 'monster'}`}
+                          title="Show monster details"
+                          onClick={() => setSelectedMonster(item)}
+                        >
+                          <span aria-hidden="true">›</span>
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -132,6 +270,38 @@ function SidePanel() {
             )}
           </div>
         </div>
+      )}
+      {selectedMonster && (
+        <aside className="monster-details-panel" aria-label="Monster details">
+          <header className="monster-details-header">
+            <div>
+              <p>MONSTER PROFILE</p>
+              <h2>{renderObjectLabel(selectedMonster)}</h2>
+            </div>
+            <button type="button" aria-label="Close monster details" onClick={() => setSelectedMonster(null)}>
+              <span aria-hidden="true">×</span>
+            </button>
+          </header>
+          {selectedMonster.details ? (
+            <div className="monster-details-content">
+              {getMonsterDetailGroups(selectedMonster.details).map(group => (
+                <section key={group.title}>
+                  <h3>{group.title}</h3>
+                  <dl>
+                    {group.fields.map(field => (
+                      <div key={field}>
+                        <dt>{MONSTER_DETAIL_LABELS[field] || field}</dt>
+                        <dd>{formatMonsterDetail(field, selectedMonster.details[field])}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <p className="monster-details-empty">Monster details are not available yet.</p>
+          )}
+        </aside>
       )}
     </div>
   );
