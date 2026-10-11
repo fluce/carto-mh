@@ -6,5 +6,5 @@
     "types": ["vite/client"]
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["dataWorker.ts"]
+  "exclude": ["data/dataWorker.ts"]
 }

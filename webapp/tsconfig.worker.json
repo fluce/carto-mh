@@ -4,5 +4,5 @@
     "lib": ["ES2022", "WebWorker"],
     "types": ["vite/client"]
   },
-  "include": ["dataWorker.ts"]
+  "include": ["data/dataWorker.ts"]
 }

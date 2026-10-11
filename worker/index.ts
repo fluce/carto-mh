@@ -1,10 +1,10 @@
-import { fetchView } from './view.ts';
-import { createToken } from './sessions.ts';
-import { loadTrolls, fetchTrolls } from './trolls.ts';
-import { loadGuildes, fetchGuildes } from './guildes.ts';
-import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './locations.ts';
-import { queryMonstersAttributes } from './monsters.ts';
-import type { ResponseHeaders, WorkerEnv } from './types.ts';
+import { fetchView } from './domains/view.ts';
+import { createToken } from './auth/sessions.ts';
+import { loadTrolls, fetchTrolls } from './domains/trolls.ts';
+import { loadGuildes, fetchGuildes } from './domains/guildes.ts';
+import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './domains/locations.ts';
+import { queryMonstersAttributes } from './domains/monsters.ts';
+import type { ResponseHeaders, WorkerEnv } from './shared/types.ts';
 
 export default {
     async fetch(request: Request, env: WorkerEnv): Promise<Response> {
