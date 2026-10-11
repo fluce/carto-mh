@@ -1,6 +1,7 @@
 import { fetchView } from './view.js';
 import { createToken } from './sessions.js';
 import { loadTrolls, fetchTrolls } from './trolls.js';
+import { loadGuildes, fetchGuildes } from './guildes.js';
 import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './locations.js';
 import { queryMonstersAttributes } from './monsters.js';
 
@@ -28,6 +29,8 @@ export default {
             return await fetchView(request, env, respHeaders);
         case 'GET /api/trolls':
             return await fetchTrolls(request, env, respHeaders);
+        case 'GET /api/guildes':
+            return await fetchGuildes(request, env, respHeaders);
         case 'GET /api/locations':
             return await fetchLocations(request, env, respHeaders);
         case 'PUT /api/locations':
@@ -41,7 +44,7 @@ export default {
         case 'GET /api/reload': {
             await Promise.all([
                 loadTrolls(env),
-                loadLocations(env)
+                loadGuildes(env)
             ]);
             return new Response('Reloaded', { status: 200, headers: respHeaders });
         }
@@ -52,7 +55,7 @@ export default {
 	async scheduled(controller, env, ctx) {
         ctx.waitUntil(Promise.all([
             loadTrolls(env),
-            loadLocations(env)
+            loadGuildes(env)
         ]));
         console.log("cron processed");
     },

@@ -20,7 +20,13 @@ export async function fetchTrolls(request, env, respHeaders) {
         return new Response('Unauthorized', { status: 401, headers: respHeaders });
     }
     
-    const data = await env.GLOBAL_DATA.get('trolls');
+    let data = await env.GLOBAL_DATA.get('trolls');
+    if (!data) {
+        data = await loadTrolls(env);
+        if (!data) {
+            return new Response('Failed to load trolls data', { status: 500, headers: respHeaders });
+        }
+    }
     return new Response(data, { headers: {
         ...respHeaders,
         'Content-Type': 'text/plain; charset=utf-8',

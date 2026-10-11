@@ -12,14 +12,10 @@ export function MaterialHandler() {
         {
             type,
             i,
-            getMaterial: () => new THREE.MeshPhysicalMaterial({
+            getMaterial: () => new THREE.MeshLambertMaterial({
                 color: new THREE.Color().setHSL(i / Object.values(all).length, 0.5, 0.5),
                 transparent: true,
                 opacity: 0.8,
-                transmission: 0.5,
-                roughness: 0.1,
-                thickness: 0.5,
-                ior: 1.45,
                 depthWrite: true
             })
         };

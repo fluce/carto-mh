@@ -1,11 +1,14 @@
 #side-panel {
+  box-sizing: border-box;
   width: 250px;
   transition: width 0.3s;
   position: relative;
   height: 100%;
-  background-color: #f4f4f4;
-  border-right: 1px solid #ddd;
-  word-break: break-all;
+  background: #fbfcfa;
+  border-right: 1px solid #d5ddd9;
+  color: #202925;
+  word-break: normal;
+  overflow-wrap: anywhere;
   z-index: 2;
 }
 
@@ -14,25 +17,69 @@
 }
 
 #side-panel > button {
-  background: none;
-  border: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #cbd5d0;
+  background: #fff;
+  color: #334c47;
   cursor: pointer;
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   z-index: 1;
-  font-size: 24px;
+  font-size: 20px;
 }
 
 #side-panel-content .section-toggle {
   position: static;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   width: 100%;
-  padding: 8px 10px;
-  font-size: 1.17em;
-  font-weight: bold;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 0;
+  border-top: 1px solid #dce3df;
+  border-bottom: 1px solid #dce3df;
+  background: #f1f5f2;
+  color: #38584d;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
   text-align: left;
+}
+
+#side-panel-content .section-toggle:hover {
+  background: #e9f0ec;
+}
+
+#side-panel-content .data-actions {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 8px 48px;
+  border-bottom: 1px solid #dce3df;
+}
+
+#side-panel-content .data-actions button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid #cbd5d0;
+  background: #fff;
+  color: #334c47;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+#side-panel-content .data-actions button:hover:not(:disabled) {
+  background: #e9f0ec;
+}
+
+#side-panel-content .data-actions button:disabled {
+  color: #64716b;
+  cursor: wait;
 }
 
 #side-panel-content .selection {
@@ -50,8 +97,14 @@
   gap: 8px;
 }
 
+#side-panel-content .selection-summary {
+  padding: 4px 0 8px;
+}
+
 #side-panel-content .coordinate-objects li {
   position: relative;
+  padding: 5px 0 7px;
+  border-bottom: 1px solid #e1e6e3;
 }
 
 #side-panel-content .selection-summary .color-box,
@@ -69,8 +122,9 @@
 #side-panel-content .selection-type,
 #side-panel-content .coordinate-objects small {
   display: block;
-  color: #666;
+  color: #64716b;
   font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 #side-panel-content .coordinate-object-content {
@@ -103,13 +157,23 @@
   background: #e7efec;
 }
 
+#side-panel-content .coordinate-object-action:focus-visible,
+#side-panel > button:focus-visible,
+#side-panel-content button:focus-visible {
+  outline: 2px solid #55796d;
+  outline-offset: 2px;
+}
+
 #side-panel-content .monster-epithet {
   font-size: 0.8em;
   font-weight: 400;
 }
 
 #side-panel-content .selection-details {
-  margin: 12px 0;
+  margin: 8px 0 12px;
+  padding: 8px 0;
+  border-top: 1px solid #e1e6e3;
+  border-bottom: 1px solid #e1e6e3;
   font-size: 0.85rem;
 }
 
@@ -121,7 +185,7 @@
 }
 
 #side-panel-content .selection-details dt {
-  color: #666;
+  color: #64716b;
 }
 
 #side-panel-content .selection-details dd {
@@ -131,12 +195,13 @@
 
 #side-panel-content .selection-content h3 {
   margin: 12px 0 6px;
-  font-size: 0.9rem;
+  color: #38584d;
+  font-size: 0.84rem;
 }
 
 #side-panel-content .coordinate-objects {
   display: grid;
-  gap: 7px;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -253,18 +318,33 @@
 }
 
 #side-panel-content {
-  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  margin-top: 0;
+  padding-top: 48px;
+  overflow-y: auto;
 }
 
 #side-panel-content .legend ul {
   list-style: none;
-  padding-inline-start: 10px;
-  cursor: pointer;
+  margin: 0;
+  padding: 6px 12px 10px;
+  border-bottom: 1px solid #e1e6e3;
 }
 
 #side-panel-content .legend ul li {
   display: flex;
   align-items: center;
+  min-height: 28px;
+  cursor: pointer;
+  color: #334c47;
+  font-size: 0.84rem;
+}
+
+#side-panel-content .legend ul li:hover {
+  color: #202925;
 }
 
 #side-panel-content .legend ul li .color-box {

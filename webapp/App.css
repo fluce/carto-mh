@@ -29,33 +29,188 @@ body, html, #root {
 }
 
 #path-finding-panel {
+  box-sizing: border-box;
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 3;
-  padding: 8px;
-  background: rgba(244, 244, 244, 0.95);
-  border: 1px solid #ddd;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  border: 1px solid #d5ddd9;
+  background: #fbfcfa;
+  box-shadow: 3px 0 14px rgba(24, 44, 38, 0.18);
+  color: #202925;
+  overflow-wrap: anywhere;
+}
+
+#path-finding-panel > button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid #dce3df;
+  background: #f1f5f2;
+  color: #38584d;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: left;
 }
 
 #path-finding-panel form {
   display: grid;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+#path-finding-panel .path-summary {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
   gap: 8px;
-  min-width: 220px;
-  margin-top: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid #dce3df;
+  color: #64716b;
+  font-size: 0.72rem;
+}
+
+#path-finding-panel .path-summary strong {
+  color: #334c47;
+  font-weight: 700;
 }
 
 #path-finding-panel label {
   display: grid;
-  gap: 4px;
+  gap: 5px;
+}
+
+#path-finding-panel label > span {
+  color: #5a6c65;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+#path-finding-panel .path-endpoint-control {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+#path-finding-panel .path-endpoint-input {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#path-finding-panel .path-endpoint-input input {
+  width: 100%;
+  padding-right: 32px;
+}
+
+#path-finding-panel .path-clear-button {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #64716b;
+  cursor: pointer;
+}
+
+#path-finding-panel .path-clear-button:hover {
+  color: #202925;
+}
+
+#path-finding-panel .path-clear-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+#path-finding-panel .path-origin-button {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  min-height: 34px;
+  padding: 4px;
+  border: 1px solid #9baea5;
+  background: #edf3ef;
+  color: #38584d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#path-finding-panel .path-origin-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+#path-finding-panel .path-origin-button:hover {
+  background: #e1ebe5;
 }
 
 #path-finding-panel input,
 #path-finding-panel select {
   box-sizing: border-box;
   width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5d0;
+  border-radius: 0;
+  background: #fff;
+  color: #202925;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+#path-finding-panel select {
+  min-height: 118px;
   padding: 4px;
+}
+
+#path-finding-panel form > button[type="submit"] {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #38584d;
+  background: #38584d;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+#path-finding-panel form > button[type="submit"]:hover:not(:disabled) {
+  background: #29483d;
+}
+
+#path-finding-panel form > button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+#path-finding-panel button:focus-visible,
+#path-finding-panel input:focus-visible,
+#path-finding-panel select:focus-visible {
+  outline: 2px solid #55796d;
+  outline-offset: 2px;
 }
 
 #path-finding-panel p {
@@ -65,15 +220,81 @@ body, html, #root {
 }
 
 #path-finding-panel .path-instructions {
-  margin: 0;
-  padding-left: 24px;
-  max-height: 240px;
+  margin: 2px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid #dce3df;
+  list-style: none;
   overflow-y: auto;
   font-size: 0.85rem;
 }
 
 #path-finding-panel .path-instructions li {
-  padding: 2px 0;
+  position: relative;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 4px 0 10px 28px;
+  color: #334c47;
+  line-height: 1.35;
+}
+
+#path-finding-panel .path-step-location {
+  display: block;
+  margin-top: 2px;
+  color: #64716b;
+  font-size: 0.78em;
+  line-height: 1.3;
+}
+
+#path-finding-panel .path-instructions li::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 9px;
+  width: 2px;
+  background: #cbd5d0;
+  content: "";
+}
+
+#path-finding-panel .path-instructions li::after {
+  position: absolute;
+  top: 5px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid #55796d;
+  border-radius: 50%;
+  background: #fbfcfa;
+  content: "";
+}
+
+#path-finding-panel .path-instructions li.path-step--shortcut::after,
+#path-finding-panel .path-instructions li.path-step--tgv::after {
+  border-color: #b46b2e;
+  background: #fff8ef;
+}
+
+#path-finding-panel .path-instructions li.path-step--start::after,
+#path-finding-panel .path-instructions li.path-step--destination::after {
+  border-color: #38584d;
+  background: #38584d;
+}
+
+#path-finding-panel .path-instructions li.path-step--start::before {
+  top: 10px;
+}
+
+#path-finding-panel .path-instructions li.path-step--destination::before {
+  bottom: calc(100% - 12px);
+}
+
+@media (max-width: 600px) {
+  #path-finding-panel {
+    top: 12px;
+    right: 12px;
+    width: min(340px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+  }
 }
 
 .login-backdrop {

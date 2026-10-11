@@ -132,7 +132,7 @@ function SidePanel() {
   const [updatePending, setUpdatePending] = useState(false);
   const [updateError, setUpdateError] = useState(null);
   const [selectedMonster, setSelectedMonster] = useState(null);
-  const { selection, legend, index } = useData();
+  const { selection, legend, index, requestSceneRender } = useData();
   const [visible, setVisible] = useState(mapLegendVisibility(legend));
 
   const togglePanel = () => {
@@ -165,6 +165,7 @@ function SidePanel() {
         }
     }
     setVisible(mapLegendVisibility(legend));
+    requestSceneRender();
   };
 
   return (
@@ -245,9 +246,15 @@ function SidePanel() {
                       <span className="coordinate-object-content">
                         <strong>{renderObjectLabel(item)}</strong>
                         <small>{item.typeLieu || item.type} - {item.id}</small>
-                        { item.type === "trolls" && <small> 
-                            { item.race } - { item.level }
-                          </small>}
+                        { 
+                        item.type === "trolls" && (
+                          <>
+                            <small> 
+                              { item.race } - { item.level }
+                            </small>
+                            { item.guild && <small>{item.guild.name} [{item.guild.guildId}]</small> } 
+                          </>
+                        )}
                         { item.type === 'monstres' && (item.details?.fam || item.details?.niv) && <small>
                           {[item.details.fam, item.details.niv && getMonsterLevel(item.details.niv)].filter(Boolean).join(' - ')}
                           </small>}

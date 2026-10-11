@@ -36,10 +36,18 @@ export async function update() {
         }
     }
     const locations = Object.values(parsedData).flat();
+
     const index = locations.reduce((acc, location) => {
+        if (location.type === "Divers") {
+            const raccourciKind = checkNameMatchesRaccourci(location.name);
+            if (raccourciKind) {
+                location.transportNetwork = `shortcut:${raccourciKind}`;
+            }
+        }
         acc.set(location.id, location);
         return acc;
     }, new Map());
+
     for (const item of tgvData ?? []) {
         const location = index.get(item.ID);
         if (location) {
@@ -74,11 +82,21 @@ export async function update() {
 
 }
 
+function checkNameMatchesRaccourci(name) {
+    for (const raccourci of raccourcis) {
+        if (name.startsWith(raccourci)) {
+            return raccourci;
+        }
+    }
+    return null;
+}
+
 async function parseData(htmlResponse) {
     console.log('Parsing HTML data for locations');
     try {
         const data = {};
         const html = await htmlResponse.text();
+        console.log('HTML response:', html);
         const $ = cheerio.load(html);
 
         $('#lieux tr').each((i, row) => {

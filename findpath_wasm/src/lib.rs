@@ -86,6 +86,45 @@ impl Point3D {
         let dz = (self.z as i32 - other.z as i32).abs() as u32;
         dx.max(dy).max(dz)
     }
+
+    fn lower_bound_distance(&self, other: &Point3D) -> f32 {
+        let dx = (self.x as i64 - other.x as i64).abs();
+        let dy = (self.y as i64 - other.y as i64).abs();
+        let dz = (self.z as i64 - other.z as i64).abs();
+        let horizontal = (dx.max(dy) + 1) / 2;
+        horizontal.max(dz * 2) as f32
+    }
+
+    fn euclidean_distance(&self, other: &Point3D) -> f64 {
+        let dx = (self.x as f64) - (other.x as f64);
+        let dy = (self.y as f64) - (other.y as f64);
+        let dz = (self.z as f64) - (other.z as f64);
+        (dx * dx + dy * dy + dz * dz).sqrt()
+    }
+}
+
+fn improves_path(
+    candidate_cost: f32,
+    candidate_distance: f64,
+    current_cost: f32,
+    current_distance: f64,
+) -> bool {
+    candidate_cost < current_cost
+        || (candidate_cost == current_cost && candidate_distance < current_distance)
+}
+
+fn heuristic_scale(shortcuts: &[Vec<(usize, f32)>], bounds: &GridBounds) -> f32 {
+    let mut scale: f32 = 1.0;
+    for (from_idx, edges) in shortcuts.iter().enumerate() {
+        let from = Point3D::from_index(from_idx, bounds);
+        for &(to_idx, cost) in edges {
+            let distance = from.lower_bound_distance(&Point3D::from_index(to_idx, bounds));
+            if distance > 0.0 {
+                scale = scale.min(cost / distance);
+            }
+        }
+    }
+    scale
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -119,12 +158,17 @@ impl PathStep {
 #[derive(Copy, Clone)]
 struct State {
     f_score: f32,
+    g_score: f32,
+    direct_distance: f64,
     node: usize,
 }
 
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
-        self.f_score == other.f_score && self.node == other.node
+        self.f_score == other.f_score
+            && self.g_score == other.g_score
+            && self.direct_distance == other.direct_distance
+            && self.node == other.node
     }
 }
 
@@ -136,6 +180,8 @@ impl Ord for State {
         other
             .f_score
             .total_cmp(&self.f_score)
+            .then_with(|| other.direct_distance.total_cmp(&self.direct_distance))
+            .then_with(|| other.g_score.total_cmp(&self.g_score))
             .then_with(|| other.node.cmp(&self.node))
     }
 }
@@ -202,18 +248,35 @@ impl PathFinder3D {
         };
 
         let mut g_score = vec![f32::INFINITY; self.bounds.total_voxels()];
+        let mut direct_distance = vec![f64::INFINITY; self.bounds.total_voxels()];
         let mut parent = vec![usize::MAX; self.bounds.total_voxels()];
         let mut step_cost = vec![0.0; self.bounds.total_voxels()];
         let mut step_shortcut = vec![false; self.bounds.total_voxels()];
         let mut open_set = BinaryHeap::new();
 
         g_score[start_idx] = 0.0;
+        direct_distance[start_idx] = 0.0;
+        let scale = heuristic_scale(&self.shortcuts, &self.bounds);
         open_set.push(State {
-            f_score: 0.0,
+            f_score: start_pt.lower_bound_distance(&target_pt) * scale,
+            g_score: 0.0,
+            direct_distance: 0.0,
             node: start_idx,
         });
 
-        while let Some(State { f_score: _, node }) = open_set.pop() {
+        while let Some(State {
+            g_score: queued_g,
+            direct_distance: queued_distance,
+            node,
+            ..
+        }) = open_set.pop()
+        {
+            if queued_g > g_score[node]
+                || (queued_g == g_score[node] && queued_distance > direct_distance[node])
+            {
+                continue;
+            }
+
             if node == target_idx {
                 // Reconstruction du chemin
                 let mut path = Vec::new();
@@ -231,6 +294,7 @@ impl PathFinder3D {
             }
 
             let current_g = g_score[node];
+            let current_direct_distance = direct_distance[node];
             let current_pt = Point3D::from_index(node, &self.bounds);
 
             // 1. Exploration des voisins de la grille. Au niveau z=0,
@@ -258,13 +322,12 @@ impl PathFinder3D {
                             && nz >= self.bounds.min_z
                             && nz <= self.bounds.max_z
                         {
-                            let v_idx = Point3D {
+                            let next_pt = Point3D {
                                 x: nx,
                                 y: ny,
                                 z: nz,
-                            }
-                            .to_index(&self.bounds)
-                            .unwrap();
+                            };
+                            let v_idx = next_pt.to_index(&self.bounds).unwrap();
 
                             if self.grid_obstacles[v_idx] {
                                 continue;
@@ -272,12 +335,23 @@ impl PathFinder3D {
 
                             let move_cost = if dz != 0 { 2.0 } else { 1.0 };
                             let tentative_g = current_g + move_cost;
-                            if tentative_g < g_score[v_idx] {
+                            let tentative_distance =
+                                current_direct_distance + current_pt.euclidean_distance(&next_pt);
+                            if improves_path(
+                                tentative_g,
+                                tentative_distance,
+                                g_score[v_idx],
+                                direct_distance[v_idx],
+                            ) {
                                 parent[v_idx] = node;
                                 step_cost[v_idx] = move_cost;
                                 g_score[v_idx] = tentative_g;
+                                direct_distance[v_idx] = tentative_distance;
                                 open_set.push(State {
-                                    f_score: tentative_g,
+                                    f_score: tentative_g
+                                        + next_pt.lower_bound_distance(&target_pt) * scale,
+                                    g_score: tentative_g,
+                                    direct_distance: tentative_distance,
                                     node: v_idx,
                                 });
                             }
@@ -293,13 +367,24 @@ impl PathFinder3D {
                 }
 
                 let tentative_g = current_g + cost;
-                if tentative_g < g_score[next_idx] {
+                let next_pt = Point3D::from_index(next_idx, &self.bounds);
+                let tentative_distance =
+                    current_direct_distance + current_pt.euclidean_distance(&next_pt);
+                if improves_path(
+                    tentative_g,
+                    tentative_distance,
+                    g_score[next_idx],
+                    direct_distance[next_idx],
+                ) {
                     parent[next_idx] = node;
                     step_cost[next_idx] = cost;
                     step_shortcut[next_idx] = true;
                     g_score[next_idx] = tentative_g;
+                    direct_distance[next_idx] = tentative_distance;
                     open_set.push(State {
-                        f_score: tentative_g,
+                        f_score: tentative_g + next_pt.lower_bound_distance(&target_pt) * scale,
+                        g_score: tentative_g,
+                        direct_distance: tentative_distance,
                         node: next_idx,
                     });
                 }
@@ -308,5 +393,40 @@ impl PathFinder3D {
 
         // Pas de chemin trouvé
         serde_wasm_bindgen::to_value(&Vec::<PathStep>::new()).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GridBounds, Point3D, heuristic_scale, improves_path};
+
+    #[test]
+    fn geometric_lower_bound_covers_horizontal_and_vertical_costs() {
+        let start = Point3D { x: 0, y: 0, z: 0 };
+        let horizontal_target = Point3D { x: 5, y: 2, z: 0 };
+        let vertical_target = Point3D { x: 1, y: 0, z: -2 };
+
+        assert_eq!(start.lower_bound_distance(&horizontal_target), 3.0);
+        assert_eq!(start.lower_bound_distance(&vertical_target), 4.0);
+    }
+
+    #[test]
+    fn cheap_shortcuts_reduce_the_heuristic_scale() {
+        let bounds = GridBounds::new(0, 10, 0, 0, 0, 0);
+        let mut shortcuts = vec![Vec::new(); bounds.total_voxels()];
+        shortcuts[0].push((10, 2.0));
+
+        assert_eq!(heuristic_scale(&shortcuts, &bounds), 0.4);
+    }
+
+    #[test]
+    fn equal_cost_paths_prefer_the_shorter_euclidean_route() {
+        let straight = Point3D { x: 3, y: 4, z: 0 };
+        let origin = Point3D { x: 0, y: 0, z: 0 };
+
+        assert_eq!(origin.euclidean_distance(&straight), 5.0);
+        assert!(improves_path(10.0, 5.0, 10.0, 6.0));
+        assert!(!improves_path(10.0, 7.0, 10.0, 6.0));
+        assert!(!improves_path(11.0, 1.0, 10.0, 6.0));
     }
 }

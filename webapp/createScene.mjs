@@ -71,7 +71,12 @@ export async function createScene(data, index, path) {
     scene.add(createXYZGizmo({ x: origin.x, y: origin.z, z: origin.y }, 5, 1, new LineMaterial({ color: 0xff00ff, linewidth: 2 })));
     
     let pathLine;
-    const pathMaterial = new LineMaterial({ color: 0xff0000, linewidth: 2 });
+    const pathMaterial = new LineMaterial({
+        color: 0xff3030,
+        linewidth: 3,
+        depthTest: false,
+        depthWrite: false,
+    });
 
     function updatePath(nextPath) {
         if (pathLine) {
@@ -80,6 +85,7 @@ export async function createScene(data, index, path) {
         }
         if ((nextPath ?? []).length > 1) {
             pathLine = createPath(nextPath, pathMaterial);
+            pathLine.renderOrder = 10;
             scene.add(pathLine);
         } else {
             pathLine = undefined;

@@ -10,7 +10,7 @@ Content-Type: application/json; charset=utf-8
 
 ###
 
-GET http://localhost:8787/api/view
+GET http://localhost:8787/api/guildes
 Authorization: Bearer {{$dotenv SESSION}}
 
 

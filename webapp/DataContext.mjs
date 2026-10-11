@@ -1,5 +1,5 @@
-import { createContext, createElement, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Index } from './data/index.mjs';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Index } from './data/indexCore.mjs';
 
 export const DataContext = createContext(null);
 
@@ -94,6 +94,7 @@ export function DataProvider({ children }) {
   const [index, setIndex] = useState(null);
   const [selection, setSelection] = useState(null);
   const [highlighted, setHighlighted] = useState(null);
+  const sceneRenderers = useRef(new Set());
   const requestedMonsterIds = useRef(new Set());
   const [needsLogin, setNeedsLogin] = useState(loginRequired);
   const [loginError, setLoginError] = useState(null);
@@ -185,6 +186,14 @@ export function DataProvider({ children }) {
       });
   }, [selection, index]);
 
+  const registerSceneRenderer = useCallback(renderer => {
+    sceneRenderers.current.add(renderer);
+    return () => sceneRenderers.current.delete(renderer);
+  }, []);
+  const requestSceneRender = useCallback(() => {
+    sceneRenderers.current.forEach(renderer => renderer());
+  }, []);
+
   const contextValue = useMemo(() => ({
     data,
     index,
@@ -193,11 +202,13 @@ export function DataProvider({ children }) {
     setSelection,
     highlighted,
     setHighlighted,
+    registerSceneRenderer,
+    requestSceneRender,
     needsLogin,
     loginError,
     loginPending,
     submitLogin,
-  }), [data, index, selection, highlighted, needsLogin, loginError, loginPending]);
+  }), [data, index, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }
@@ -207,6 +218,7 @@ export function useData() {
 }
 
 function buildDataFromIndex(index) {
+  console.log('Building data from index:', index);
   const data = {
     groups: {
       ...index.getAll().reduce((acc, item) => {

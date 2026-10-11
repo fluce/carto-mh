@@ -36,7 +36,9 @@ export function PathFindingProvider({ children }) {
   const { data, index } = useData();
   const [path, setPath] = useState([]);
   const [shortcutNetwork, setShortcutNetwork] = useState(['all']);
-  const pathOrigin = data ? (data.origine ?? [{ x: 0, y: 0, z: 0 }])[0] : null;
+  const pathOrigin = data
+    ? (data.groups?.origine?.items ?? [{ x: 0, y: 0, z: 0 }])[0]
+    : null;
   const shortcutNetworks = useMemo(() => [
     { value: 'all', label: 'All networks' },
     { value: 'tgv', label: 'TGV' },
@@ -54,7 +56,7 @@ export function PathFindingProvider({ children }) {
       throw new Error('Pathfinder is still loading.');
     }
 
-    const result = await findPathWithWasm(data, from, target, network);
+    const result = await findPathWithWasm(index, from, target, network);
     setPath(result.path);
     logPath(index, result.path, result.cost);
     return result;

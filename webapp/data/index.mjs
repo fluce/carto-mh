@@ -1,4 +1,5 @@
 import { loadLocations } from './locations.mjs';
+import { loadGuildes } from './guildes.mjs';
 import { loadViewData } from './view.mjs';
 import { loadTrolls } from './trolls.mjs';
 
@@ -6,16 +7,42 @@ export { queryMonsters } from './monsters.mjs';
 
 export async function load() {
     await loadLocations();
-    await loadTrolls();
+    const guildNames = await loadGuildes();
+    await loadTrolls(guildNames);
     await loadViewData();
 }
 
 const geoIndex = new Map();
 const idIndex = new Map();
 const kindIndex = new Map();
+const nameIndex = new Map();
+
+function normalizeName(value) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
+}
+
+function getNamePrefixes(name) {
+    const normalizedName = normalizeName(name.trim());
+    const tokens = normalizedName.split(/\s+/).filter(Boolean);
+    const prefixes = new Set();
+    for (const token of [normalizedName, ...tokens]) {
+        for (let length = 1; length <= token.length; length += 1) {
+            prefixes.add(token.slice(0, length));
+        }
+    }
+    return prefixes;
+}
+
+function addToNameIndex(item) {
+    if (!item.name) return;
+    for (const prefix of getNamePrefixes(item.name)) {
+        if (!nameIndex.has(prefix)) nameIndex.set(prefix, new Set());
+        nameIndex.get(prefix).add(item);
+    }
+}
 
 function calcGeoKey(item) {
-    if (item.x && item.y && item.z)
+    if (item.x !== undefined && item.y !== undefined && item.z !== undefined)
         return `${item.x}|${item.y}|${item.z}`;
     return undefined;
 }
@@ -56,7 +83,12 @@ function addToIndex(newItem) {
         geoIndex.get(key).add(item);
     }
 
-    for(const k of item.kind) {        
+    addToKindIndex(item);
+    addToNameIndex(item);
+}
+
+function addToKindIndex(item) {
+    for (const k of item.kind) {
         if (!kindIndex.has(k)) {
             kindIndex.set(k, new Set());
         }
@@ -85,6 +117,7 @@ export class Index {
         this.geoIdx = source.geoIdx ?? geoIndex;
         this.idIdx = source.idIdx ?? idIndex;
         this.kindIdx = source.kindIdx ?? kindIndex;
+        this.nameIdx = source.nameIdx ?? nameIndex;
     }
 
     getById(id) {
@@ -117,10 +150,26 @@ export class Index {
         return this.idIdx.values();
     }
 
+    search(query, limit = 10) {
+        const normalizedQuery = normalizeName(query.trim());
+        if (!normalizedQuery) return [];
+
+        return [...(this.nameIdx.get(normalizedQuery) ?? [])]
+            .filter(item => {
+                const searchable = item.kind?.some(kind =>
+                    kind === 'location' || kind === 'troll' || kind === 'view:monstres'
+                );
+                return searchable && item.x !== undefined && item.y !== undefined && item.z !== undefined &&
+                    getNamePrefixes(item.name ?? '').has(normalizedQuery);
+            })
+            .sort((first, second) => first.name.localeCompare(second.name, 'fr'))
+            .slice(0, limit);
+    }
+
 }
 
 export function getIndex() {
-    return new Index({ geoIdx: geoIndex, idIdx: idIndex, kindIdx: kindIndex });
+    return new Index({ geoIdx: geoIndex, idIdx: idIndex, kindIdx: kindIndex, nameIdx: nameIndex });
 }
 
 
