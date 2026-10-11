@@ -10,13 +10,19 @@
     "three": "^0.172.0"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "^4.3.4",
     "sirv": "^3.0.2",
-    "vite": "^6.0.6"
+    "typescript": "7.0.2",
+    "vite": "^6.0.6",
+    "wrangler": "4.149.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "typecheck": "tsc -p webapp/tsconfig.json && tsc -p webapp/tsconfig.worker.json && tsc -p worker/tsconfig.json",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview"
   }
 }

@@ -1,6 +1,6 @@
 {
 	"name": "carto-mh",
-	"main": "index.js",
+	"main": "index.ts",
 	"compatibility_date": "2026-09-19",
 	"vars": {
 		// Comma-separated exact origins allowed to call the relay.
