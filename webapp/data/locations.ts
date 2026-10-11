@@ -1,6 +1,6 @@
 
 import { getToken } from '../dataWorker.ts';
-import { updateIndex } from './index.ts';
+import { updateIndex } from '.';
 import { decompressTrous } from './trous.ts';
 import type { CompressedHole, SourceItem } from '../types';
 

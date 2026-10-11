@@ -1,5 +1,5 @@
 import { getToken } from '../dataWorker.ts';
-import { updateIndex } from './index.ts';
+import { updateIndex } from '.';
 
 interface GuildRecord extends Record<string, unknown> {
     ID: string | number;
