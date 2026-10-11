@@ -87,7 +87,7 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
     const pathMaterial = new LineMaterial({
         color: 0xff3030,
         linewidth: 3,
-        depthTest: false,
+        depthTest: true,
         depthWrite: false,
     });
 

@@ -30,7 +30,7 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
     }
 };
 
-const token = await db.get('keyval', 'token');
+let token = await db.get('keyval', 'token');
 if (!token) {
     console.log('No token found, need login');
     self.postMessage({ type: 'need:login' });
@@ -39,8 +39,15 @@ if (!token) {
     self.postMessage({ type: 'ready' });
 }
 
-export function getToken() {
+async function getCachedToken() {
+    if (!token) {
+        token = await db.get('keyval', 'token');
+    }
     return token;
+} 
+
+export async function getToken() {
+    return getCachedToken();
 }
 
 async function load() {
@@ -65,6 +72,7 @@ async function login(id: string, secret: string): Promise<{ success: true }> {
     }
     const result = await response.json() as { token: string };
     await db.put('keyval', result.token, 'token');
+    token = result.token;
     return { success: true };
 }
 

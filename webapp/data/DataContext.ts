@@ -88,10 +88,10 @@ function setupWorker() {
       worker.terminate();
     };
   });
-  return ready.then(() => worker);
+  return {workerForLogin: worker, ready: ready.then(() => worker)};
 }
 
-const workerPromise = setupWorker();
+const { workerForLogin, ready: workerPromise } = setupWorker();
 const calls = new Map<string, PendingCall>();
 
 export async function callWorker<Action extends keyof WorkerRequestMap>(
@@ -99,7 +99,7 @@ export async function callWorker<Action extends keyof WorkerRequestMap>(
   payload: WorkerRequestMap[Action],
 ): Promise<WorkerResultMap[Action]>
 {
-  const worker = await workerPromise;
+  const worker = type === 'login' ? workerForLogin : await workerPromise;
   const id = crypto.randomUUID();
   return new Promise<WorkerResultMap[Action]>((resolve, reject) => {
     calls.set(id, {
@@ -132,6 +132,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => subscribeToLoginRequired(() => setNeedsLogin(true)), []);
 
   async function submitLogin(id: string, secret: string) {
+    console.log("Submitting login with ID:", id);
     setLoginPending(true);
     setLoginError(null);
     try {

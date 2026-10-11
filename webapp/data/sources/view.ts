@@ -4,7 +4,7 @@ import type { SourceItem } from '../../shared/types';
 
 async function load() {
     const res=await fetch('/api/view', { method: 'GET', headers: {
-        "Authorization": `Bearer ${getToken()}`
+        "Authorization": `Bearer ${await getToken()}`
     } });
     const lines=(await res.text()).split('\n');
     return lines;

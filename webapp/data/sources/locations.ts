@@ -9,7 +9,7 @@ async function load() {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${await getToken()}`
         }
     });
     return await response.json();

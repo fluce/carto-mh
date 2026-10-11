@@ -9,13 +9,13 @@ export async function update() {
     // load data
     const data = await fetch('/api/locations/raw', { method: 'GET',
         headers: {
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${await getToken()}`
         }
     });
 
     const tgv = await fetch('/api/locations/tgv', { method: 'GET',
         headers: {
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${await getToken()}`
         }
     });
 
@@ -74,7 +74,7 @@ export async function update() {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${await getToken()}`
         },
         body: JSON.stringify(resultData)
     });

@@ -65,7 +65,7 @@ export async function getCredentials(headers: Headers, env: WorkerEnv): Promise<
     
     const token = headers.get('Authorization')?.replace('Bearer ', '');
     if (!token) {
-        throw new Error('Authorization header missing or invalid');
+        return null;
     }
 
     if (!env.USER_DATA || !env.CREDENTIALS_ENCRYPTION_KEY) {
@@ -73,6 +73,9 @@ export async function getCredentials(headers: Headers, env: WorkerEnv): Promise<
     }
 
     const decodedToken = base64ToBytes(token);
+    if (decodedToken.length !== 48) {
+        return null;
+    }
     const idHash = bytesToBase64(decodedToken.slice(0, 32));
     const sessionId = bytesToBase64(decodedToken.slice(32));
 
@@ -181,8 +184,12 @@ async function decryptSecret(encryptedData: EncryptedSecret, encryptionKey: stri
 }
 
 function base64ToBytes(value: string): Uint8Array {
-    const binary = atob(value);
-    return Uint8Array.from(binary, character => character.charCodeAt(0));
+    try {
+        const binary = atob(value);
+        return Uint8Array.from(binary, character => character.charCodeAt(0));
+    } catch (error) {
+        return new Uint8Array(0);
+    }
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

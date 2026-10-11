@@ -12,6 +12,7 @@ function LoginDialog() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    console.log("Submitting login with ID:", id);
     await submitLogin(id.trim(), secret);
   }
 

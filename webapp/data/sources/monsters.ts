@@ -7,7 +7,7 @@ async function query(ids: Array<Pick<MonsterRecord, 'id'> & { name?: string }>):
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${await getToken()}`
         },
         body: JSON.stringify(ids)
     });
