@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,8 +91,18 @@ impl Point3D {
         let dx = (self.x as i64 - other.x as i64).abs();
         let dy = (self.y as i64 - other.y as i64).abs();
         let dz = (self.z as i64 - other.z as i64).abs();
-        let horizontal = (dx.max(dy) + 1) / 2;
-        horizontal.max(dz * 2) as f32
+        let horizontal = dx.max(dy);
+
+        if self.z < 0 && other.z < 0 {
+            let below_surface = horizontal.max(dz * 2);
+            let vertical_steps = (self.z as i64).abs() + (other.z as i64).abs();
+            let remaining_horizontal = horizontal.saturating_sub(vertical_steps * 2);
+            let via_surface = vertical_steps * 2 + (remaining_horizontal + 1) / 2;
+            below_surface.min(via_surface) as f32
+        } else {
+            let horizontal = (horizontal + 1) / 2;
+            horizontal.max(dz * 2) as f32
+        }
     }
 
     fn euclidean_distance(&self, other: &Point3D) -> f64 {
@@ -100,6 +110,89 @@ impl Point3D {
         let dy = (self.y as f64) - (other.y as f64);
         let dz = (self.z as f64) - (other.z as f64);
         (dx * dx + dy * dy + dz * dz).sqrt()
+    }
+}
+
+struct RelaxedHeuristic {
+    endpoints: Vec<Point3D>,
+    remaining_cost: Vec<f32>,
+}
+
+impl RelaxedHeuristic {
+    fn new(
+        shortcut_nodes: &[usize],
+        shortcut_edges: &[(usize, usize, f32)],
+        bounds: &GridBounds,
+        target: &Point3D,
+    ) -> Self {
+        let endpoints: Vec<_> = shortcut_nodes
+            .iter()
+            .map(|&index| Point3D::from_index(index, bounds))
+            .collect();
+        let endpoint_indices: HashMap<_, _> = shortcut_nodes
+            .iter()
+            .enumerate()
+            .map(|(position, &index)| (index, position))
+            .collect();
+        let mut incoming = vec![Vec::new(); endpoints.len()];
+
+        for &(from, to, cost) in shortcut_edges {
+            if let (Some(&from_position), Some(&to_position)) =
+                (endpoint_indices.get(&from), endpoint_indices.get(&to))
+            {
+                incoming[to_position].push((from_position, cost));
+            }
+        }
+
+        let mut remaining_cost: Vec<_> = endpoints
+            .iter()
+            .map(|point| point.lower_bound_distance(target))
+            .collect();
+        let mut settled = vec![false; endpoints.len()];
+
+        for _ in 0..endpoints.len() {
+            let current = (0..endpoints.len())
+                .filter(|&position| !settled[position])
+                .min_by(|&first, &second| remaining_cost[first].total_cmp(&remaining_cost[second]));
+            let Some(current) = current else {
+                break;
+            };
+            settled[current] = true;
+
+            for next in 0..endpoints.len() {
+                if settled[next] {
+                    continue;
+                }
+                let candidate = remaining_cost[current]
+                    + endpoints[next].lower_bound_distance(&endpoints[current]);
+                if candidate < remaining_cost[next] {
+                    remaining_cost[next] = candidate;
+                }
+            }
+
+            for &(from, cost) in &incoming[current] {
+                if !settled[from] {
+                    let candidate = remaining_cost[current] + cost;
+                    if candidate < remaining_cost[from] {
+                        remaining_cost[from] = candidate;
+                    }
+                }
+            }
+        }
+
+        Self {
+            endpoints,
+            remaining_cost,
+        }
+    }
+
+    fn estimate(&self, point: &Point3D, target: &Point3D) -> f32 {
+        self.endpoints.iter().zip(&self.remaining_cost).fold(
+            point.lower_bound_distance(target),
+            |best, (endpoint, remaining)| {
+                best.min(point.lower_bound_distance(endpoint) + remaining)
+            },
+        )
     }
 }
 
@@ -111,20 +204,6 @@ fn improves_path(
 ) -> bool {
     candidate_cost < current_cost
         || (candidate_cost == current_cost && candidate_distance < current_distance)
-}
-
-fn heuristic_scale(shortcuts: &[Vec<(usize, f32)>], bounds: &GridBounds) -> f32 {
-    let mut scale: f32 = 1.0;
-    for (from_idx, edges) in shortcuts.iter().enumerate() {
-        let from = Point3D::from_index(from_idx, bounds);
-        for &(to_idx, cost) in edges {
-            let distance = from.lower_bound_distance(&Point3D::from_index(to_idx, bounds));
-            if distance > 0.0 {
-                scale = scale.min(cost / distance);
-            }
-        }
-    }
-    scale
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -153,6 +232,24 @@ impl PathStep {
             shortcut,
         }
     }
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct SearchStats {
+    popped_nodes: usize,
+    expanded_nodes: usize,
+    stale_pops: usize,
+    relaxations: usize,
+    max_open_set_size: usize,
+    shortcut_endpoint_count: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PathSearchResult {
+    path: Vec<PathStep>,
+    stats: SearchStats,
 }
 
 #[derive(Copy, Clone)]
@@ -197,6 +294,9 @@ pub struct PathFinder3D {
     bounds: GridBounds,
     grid_obstacles: Vec<bool>,         // true si infranchissable
     shortcuts: Vec<Vec<(usize, f32)>>, // Adjacence par index de voxel
+    shortcut_nodes: Vec<usize>,
+    shortcut_node_indices: HashSet<usize>,
+    shortcut_edges: Vec<(usize, usize, f32)>,
 }
 
 #[wasm_bindgen]
@@ -210,6 +310,9 @@ impl PathFinder3D {
             bounds,
             grid_obstacles: vec![false; total_voxels],
             shortcuts: vec![Vec::new(); total_voxels],
+            shortcut_nodes: Vec::new(),
+            shortcut_node_indices: HashSet::new(),
+            shortcut_edges: Vec::new(),
         }
     }
 
@@ -234,6 +337,13 @@ impl PathFinder3D {
         };
 
         self.shortcuts[from_idx].push((to_idx, cost));
+        if self.shortcut_node_indices.insert(from_idx) {
+            self.shortcut_nodes.push(from_idx);
+        }
+        if self.shortcut_node_indices.insert(to_idx) {
+            self.shortcut_nodes.push(to_idx);
+        }
+        self.shortcut_edges.push((from_idx, to_idx, cost));
     }
 
     pub fn find_path(&self, start: JsValue, target: JsValue) -> JsValue {
@@ -244,7 +354,11 @@ impl PathFinder3D {
             start_pt.to_index(&self.bounds),
             target_pt.to_index(&self.bounds),
         ) else {
-            return serde_wasm_bindgen::to_value(&Vec::<PathStep>::new()).unwrap();
+            return serde_wasm_bindgen::to_value(&PathSearchResult {
+                path: Vec::new(),
+                stats: SearchStats::default(),
+            })
+            .unwrap();
         };
 
         let mut g_score = vec![f32::INFINITY; self.bounds.total_voxels()];
@@ -256,9 +370,19 @@ impl PathFinder3D {
 
         g_score[start_idx] = 0.0;
         direct_distance[start_idx] = 0.0;
-        let scale = heuristic_scale(&self.shortcuts, &self.bounds);
+        let heuristic = RelaxedHeuristic::new(
+            &self.shortcut_nodes,
+            &self.shortcut_edges,
+            &self.bounds,
+            &target_pt,
+        );
+        let mut stats = SearchStats {
+            max_open_set_size: 1,
+            shortcut_endpoint_count: self.shortcut_nodes.len(),
+            ..SearchStats::default()
+        };
         open_set.push(State {
-            f_score: start_pt.lower_bound_distance(&target_pt) * scale,
+            f_score: heuristic.estimate(&start_pt, &target_pt),
             g_score: 0.0,
             direct_distance: 0.0,
             node: start_idx,
@@ -271,9 +395,11 @@ impl PathFinder3D {
             ..
         }) = open_set.pop()
         {
+            stats.popped_nodes += 1;
             if queued_g > g_score[node]
                 || (queued_g == g_score[node] && queued_distance > direct_distance[node])
             {
+                stats.stale_pops += 1;
                 continue;
             }
 
@@ -290,9 +416,10 @@ impl PathFinder3D {
                     curr = parent[curr];
                 }
                 path.reverse();
-                return serde_wasm_bindgen::to_value(&path).unwrap();
+                return serde_wasm_bindgen::to_value(&PathSearchResult { path, stats }).unwrap();
             }
 
+            stats.expanded_nodes += 1;
             let current_g = g_score[node];
             let current_direct_distance = direct_distance[node];
             let current_pt = Point3D::from_index(node, &self.bounds);
@@ -347,13 +474,15 @@ impl PathFinder3D {
                                 step_cost[v_idx] = move_cost;
                                 g_score[v_idx] = tentative_g;
                                 direct_distance[v_idx] = tentative_distance;
+                                stats.relaxations += 1;
                                 open_set.push(State {
-                                    f_score: tentative_g
-                                        + next_pt.lower_bound_distance(&target_pt) * scale,
+                                    f_score: tentative_g + heuristic.estimate(&next_pt, &target_pt),
                                     g_score: tentative_g,
                                     direct_distance: tentative_distance,
                                     node: v_idx,
                                 });
+                                stats.max_open_set_size =
+                                    stats.max_open_set_size.max(open_set.len());
                             }
                         }
                     }
@@ -381,24 +510,30 @@ impl PathFinder3D {
                     step_shortcut[next_idx] = true;
                     g_score[next_idx] = tentative_g;
                     direct_distance[next_idx] = tentative_distance;
+                    stats.relaxations += 1;
                     open_set.push(State {
-                        f_score: tentative_g + next_pt.lower_bound_distance(&target_pt) * scale,
+                        f_score: tentative_g + heuristic.estimate(&next_pt, &target_pt),
                         g_score: tentative_g,
                         direct_distance: tentative_distance,
                         node: next_idx,
                     });
+                    stats.max_open_set_size = stats.max_open_set_size.max(open_set.len());
                 }
             }
         }
 
         // Pas de chemin trouvé
-        serde_wasm_bindgen::to_value(&Vec::<PathStep>::new()).unwrap()
+        serde_wasm_bindgen::to_value(&PathSearchResult {
+            path: Vec::new(),
+            stats,
+        })
+        .unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{GridBounds, Point3D, heuristic_scale, improves_path};
+    use super::{GridBounds, Point3D, RelaxedHeuristic, improves_path};
 
     #[test]
     fn geometric_lower_bound_covers_horizontal_and_vertical_costs() {
@@ -411,12 +546,59 @@ mod tests {
     }
 
     #[test]
-    fn cheap_shortcuts_reduce_the_heuristic_scale() {
-        let bounds = GridBounds::new(0, 10, 0, 0, 0, 0);
-        let mut shortcuts = vec![Vec::new(); bounds.total_voxels()];
-        shortcuts[0].push((10, 2.0));
+    fn geometric_lower_bound_never_overestimates_small_grid_walk_costs() {
+        let points: Vec<_> = (0..=6)
+            .flat_map(|x| (-3..=0).map(move |z| Point3D { x, y: 0, z }))
+            .collect();
+        let point_count = points.len();
+        let mut distances = vec![f32::INFINITY; point_count * point_count];
 
-        assert_eq!(heuristic_scale(&shortcuts, &bounds), 0.4);
+        for (from_index, from) in points.iter().enumerate() {
+            distances[from_index * point_count + from_index] = 0.0;
+            let max_horizontal_step = if from.z == 0 { 2 } else { 1 };
+            for (to_index, to) in points.iter().enumerate() {
+                let dx = (from.x - to.x).abs();
+                let dz = (from.z - to.z).abs();
+                if dx <= max_horizontal_step && dz <= 1 && (dx != 0 || dz != 0) {
+                    distances[from_index * point_count + to_index] =
+                        if dz != 0 { 2.0 } else { 1.0 };
+                }
+            }
+        }
+
+        for intermediate in 0..point_count {
+            for from in 0..point_count {
+                for to in 0..point_count {
+                    let through_intermediate = distances[from * point_count + intermediate]
+                        + distances[intermediate * point_count + to];
+                    let distance = &mut distances[from * point_count + to];
+                    *distance = distance.min(through_intermediate);
+                }
+            }
+        }
+
+        for (from_index, from) in points.iter().enumerate() {
+            for (to_index, to) in points.iter().enumerate() {
+                assert!(
+                    from.lower_bound_distance(to) <= distances[from_index * point_count + to_index],
+                    "lower bound overestimates distance from {from:?} to {to:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn relaxed_heuristic_accounts_for_one_way_shortcuts() {
+        let bounds = GridBounds::new(0, 100, 0, 0, 0, 0);
+        let shortcut_nodes = [0, 90];
+        let shortcut_edges = [(0, 90, 2.0)];
+        let origin = Point3D { x: 0, y: 0, z: 0 };
+        let shortcut_destination = Point3D { x: 90, y: 0, z: 0 };
+        let target = Point3D { x: 100, y: 0, z: 0 };
+        let heuristic = RelaxedHeuristic::new(&shortcut_nodes, &shortcut_edges, &bounds, &target);
+
+        assert_eq!(heuristic.estimate(&origin, &target), 7.0);
+        assert_eq!(heuristic.estimate(&shortcut_destination, &target), 5.0);
     }
 
     #[test]

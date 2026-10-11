@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePathFinding } from './PathFindingContext.mjs';
 import { useData } from './DataContext.mjs';
+import PathEndpointInput from './PathEndpointInput.jsx';
 
 function formatPoint(point) {
   return `${point.x},${point.y},${point.z}`;
@@ -12,75 +13,6 @@ function parsePoint(value) {
     throw new Error('Choose a suggestion or enter three integers separated by commas.');
   }
   return { x: coordinates[0], y: coordinates[1], z: coordinates[2] };
-}
-
-function formatSuggestion(item) {
-  let category = 'Monster';
-  if (item.kind.includes('location')) {
-    category = 'Location';
-  } else if (item.kind.includes('troll')) {
-    category = 'Troll';
-  }
-  return `${item.name} (${formatPoint(item)}) [${category}]`;
-}
-
-function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }) {
-  const isCoordinate = /^\s*-?\d+\s*,\s*-?\d+\s*,\s*-?\d+\s*$/.test(endpoint.value);
-  const suggestions = isCoordinate ? [] : (index?.search(endpoint.value, 10) ?? []);
-  const suggestionsByLabel = new Map(suggestions.map(item => [formatSuggestion(item), item]));
-
-  function handleChange(event) {
-    const value = event.target.value;
-    const selected = suggestionsByLabel.get(value);
-    onChange({ value, point: selected ? { x: selected.x, y: selected.y, z: selected.z } : null });
-  }
-
-  return (
-    <label className="path-endpoint">
-      <span>{label}</span>
-      <div className="path-endpoint-control">
-        <div className="path-endpoint-input">
-          <input
-            list={`${id}-suggestions`}
-            value={endpoint.value}
-            onChange={handleChange}
-            placeholder="Name or x,y,z"
-          />
-          <datalist id={`${id}-suggestions`}>
-            {suggestions.map(item => (
-              <option key={`${item.id}-${item.type}`} value={formatSuggestion(item)} />
-            ))}
-          </datalist>
-          {endpoint.value && (
-            <button
-              className="path-clear-button"
-              type="button"
-              onClick={() => onChange({ value: '', point: null })}
-              title={`Clear ${label}`}
-              aria-label={`Clear ${label}`}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-              </svg>
-            </button>
-          )}
-        </div>
-        {onUseOrigin && (
-          <button
-            className="path-origin-button"
-            type="button"
-            onClick={onUseOrigin}
-            title="Use current position (Origin)"
-            aria-label="Use current position (Origin)"
-          >
-            <svg className="path-origin-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.94 3A9.994 9.994 0 0 0 13 3.06V1h-2v2.06A9.994 9.994 0 0 0 3.06 11H1v2h2.06A9.994 9.994 0 0 0 11 20.94V23h2v-2.06A9.994 9.994 0 0 0 20.94 13H23v-2h-2.06ZM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" />
-            </svg>
-          </button>
-        )}
-      </div>
-    </label>
-  );
 }
 
 function getLocationInfo(index, point) {
@@ -157,6 +89,7 @@ function PathFindingPanel() {
   const [to, setTo] = useState({ value: '65,0,0', point: null });
   const [error, setError] = useState('');
   const [calculation, setCalculation] = useState(null);
+  const [showCalculationDetails, setShowCalculationDetails] = useState(false);
 
   useEffect(() => {
     if (pathOrigin) {
@@ -168,6 +101,7 @@ function PathFindingPanel() {
     event.preventDefault();
     setError('');
     setCalculation(null);
+    setShowCalculationDetails(false);
 
     try {
       const start = from.point ?? parsePoint(from.value);
@@ -177,7 +111,12 @@ function PathFindingPanel() {
       }
       const startedAt = performance.now();
       const result = await findPath(start, target);
-      setCalculation({ cost: result.cost, durationMs: performance.now() - startedAt });
+      setCalculation({
+        cost: result.cost,
+        durationMs: performance.now() - startedAt,
+        stats: result.stats,
+        timings: result.timings,
+      });
     } catch (pathError) {
       setError(pathError.message);
     }
@@ -250,9 +189,38 @@ function PathFindingPanel() {
         </form>
       )}
       {isOpen && calculation && (
-        <div className="path-summary" role="status">
+        <div className="path-summary" aria-live="polite">
           <span>Total cost: <strong>{calculation.cost}</strong></span>
-          <span>Calculation: <strong>{calculation.durationMs.toFixed(2)} ms</strong></span>
+          {calculation.timings && calculation.stats ? (
+            <button
+              className="path-summary-toggle"
+              type="button"
+              aria-expanded={showCalculationDetails}
+              aria-controls="path-timing-details"
+              onClick={() => setShowCalculationDetails(!showCalculationDetails)}
+            >
+              Total time: <strong>{calculation.durationMs.toFixed(2)} ms</strong>
+            </button>
+          ) : (
+            <span>Total time: <strong>{calculation.durationMs.toFixed(2)} ms</strong></span>
+          )}
+          {calculation.timings && calculation.stats && (
+            <div
+              className="path-summary-details"
+              id="path-timing-details"
+              hidden={!showCalculationDetails}
+            >
+              <span>A* call: <strong>{calculation.timings.searchDurationMs.toFixed(2)} ms</strong></span>
+              <span>Expanded nodes: <strong>{calculation.stats.expandedNodes.toLocaleString()}</strong></span>
+              <span>Popped nodes: <strong>{calculation.stats.poppedNodes.toLocaleString()}</strong></span>
+              <span>Stale pops: <strong>{calculation.stats.stalePops.toLocaleString()}</strong></span>
+              <span>Relaxations: <strong>{calculation.stats.relaxations.toLocaleString()}</strong></span>
+              <span>Peak queue: <strong>{calculation.stats.maxOpenSetSize.toLocaleString()}</strong></span>
+              <span>Shortcut endpoints: <strong>{calculation.stats.shortcutEndpointCount.toLocaleString()}</strong></span>
+              <span>Pathfinder setup: <strong>{calculation.timings.pathfinderInitializationDurationMs.toFixed(2)} ms</strong></span>
+              <span>WASM init: <strong>{calculation.timings.wasmInitializationDurationMs.toFixed(2)} ms</strong></span>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -23,10 +23,10 @@ let pathfinder;
 let cachedIndex;
 let cachedShortcutNetwork;
 let pathFinderInitialization;
+let wasmInitializationDurationMs = 0;
 
 function initializePathfinder(index, shortcutNetwork) {
     const nextPathfinder = new PathFinder3D(...GRID_BOUNDS);
-    console.log('Initializing pathfinder with data:', index);
 
     for (const lieu of index.getByKind("trou")) {
         nextPathfinder.set_obstacle(lieu.x, lieu.y, lieu.z, true);
@@ -39,8 +39,6 @@ function initializePathfinder(index, shortcutNetwork) {
         groups.set(raccourci.transportNetwork, group);
         return groups;
     }, new Map());
-    console.log('Raccourcis:', raccourcis);
-    console.log('Shortcuts by type:', shortcutsByType);
 
     for (const raccourcis of shortcutsByType.values()) {
         const cost = raccourcis[0].transportNetwork === 'tgv' ? TGV_SHORTCUT_COST : SHORTCUT_COST;
@@ -60,20 +58,42 @@ function initializePathfinder(index, shortcutNetwork) {
 }
 
 export async function findPath(index, start, target, shortcutNetwork = ['all']) {
-    pathFinderInitialization ??= initPathFinder();
+    if (!pathFinderInitialization) {
+        const initializationStartedAt = performance.now();
+        pathFinderInitialization = initPathFinder().then(() => {
+            wasmInitializationDurationMs = performance.now() - initializationStartedAt;
+        });
+    }
     await pathFinderInitialization;
 
     const network = [...new Set(shortcutNetwork)].sort();
     const networkUnchanged = cachedShortcutNetwork?.length === network.length
         && cachedShortcutNetwork.every((value, position) => value === network[position]);
 
+    let pathfinderInitializationDurationMs = 0;
     if (!pathfinder || cachedIndex !== index || !networkUnchanged) {
+        const initializationStartedAt = performance.now();
         pathfinder = initializePathfinder(index, shortcutNetwork);
+        pathfinderInitializationDurationMs = performance.now() - initializationStartedAt;
         cachedIndex = index;
         cachedShortcutNetwork = network;
     }
 
-    const path = pathfinder.find_path(start, target);
+    const searchStartedAt = performance.now();
+    const { path, stats } = pathfinder.find_path(start, target);
+    const searchDurationMs = performance.now() - searchStartedAt;
+    const costStartedAt = performance.now();
     const cost = path.reduce((total, step) => total + step.cost, 0);
-    return { path, cost };
+    const costAggregationDurationMs = performance.now() - costStartedAt;
+    return {
+        path,
+        cost,
+        stats,
+        timings: {
+            wasmInitializationDurationMs,
+            pathfinderInitializationDurationMs,
+            searchDurationMs,
+            costAggregationDurationMs,
+        },
+    };
 }

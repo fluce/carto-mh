@@ -73,6 +73,7 @@ body, html, #root {
 #path-finding-panel .path-summary {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px;
@@ -84,6 +85,31 @@ body, html, #root {
 #path-finding-panel .path-summary strong {
   color: #334c47;
   font-weight: 700;
+}
+
+#path-finding-panel .path-summary-toggle {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+#path-finding-panel .path-summary-toggle:hover strong {
+  text-decoration: underline;
+}
+
+#path-finding-panel .path-summary-details {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+#path-finding-panel .path-summary-details[hidden] {
+  display: none;
 }
 
 #path-finding-panel label {
@@ -112,6 +138,39 @@ body, html, #root {
 #path-finding-panel .path-endpoint-input input {
   width: 100%;
   padding-right: 32px;
+}
+
+.path-endpoint-suggestions {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 20;
+  overflow: hidden;
+  border: 1px solid #9baea5;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(24, 44, 38, 0.2);
+}
+
+.path-endpoint-suggestion {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: #202925;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.path-endpoint-suggestion:hover,
+.path-endpoint-suggestion[aria-selected="true"] {
+  background: #e5eee8;
 }
 
 #path-finding-panel .path-clear-button {

@@ -3,35 +3,6 @@ import { findPath as findPathWithWasm } from './findPathWasm.mjs';
 import { useData } from './DataContext.mjs';
 import { PathFindingContext } from './PathFindingContext.mjs';
 
-function logPath(index, path, cost) {
-  const pathForConsole = path.map((step, stepIndex) => {
-    const cellLieux = index.get(step)
-      .filter(cell => cell.type === "lieux")
-      .map(cell => ({ id: cell.id, name: cell.name }));
-    const lieux = cellLieux.length === 1
-      ? `${cellLieux[0].id} ${cellLieux[0].name}`
-      : cellLieux.length > 1
-        ? cellLieux
-        : null;
-
-    return {
-      step: stepIndex,
-      x: step.x,
-      y: step.y,
-      z: step.z,
-      cost: step.cost,
-      shortcut: step.shortcut,
-      lieux,
-    };
-  });
-
-  console.log("Cost", cost);
-  console.log("Length", path.length);
-  console.log("Complete path", pathForConsole);
-  console.table(pathForConsole);
-}
-
-
 export function PathFindingProvider({ children }) {
   const { data, index } = useData();
   const [path, setPath] = useState([]);
@@ -58,7 +29,6 @@ export function PathFindingProvider({ children }) {
 
     const result = await findPathWithWasm(index, from, target, network);
     setPath(result.path);
-    logPath(index, result.path, result.cost);
     return result;
   }, [data, index, shortcutNetwork]);
 
