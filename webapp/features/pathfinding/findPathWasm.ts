@@ -1,5 +1,5 @@
 import initPathFinder, { PathFinder3D } from '../../../findpath_wasm/pkg/findpath_wasm.js';
-import type { GeoIndex, IndexedItem, PathResult, PathStep, Point3D, SearchStats } from '../../shared/types';
+import type { GeoIndex, IndexedItem, PathResult, PathStep, Point3D, SearchStats, ShortcutNetworks } from '../../shared/types';
 
 const GRID_BOUNDS = [-100, 100, -100, 100, -100, 0] as const;
 const SHORTCUT_COST = 2;
@@ -7,19 +7,22 @@ const TGV_SHORTCUT_COST = 6;
 
 type EligibleShortcut = IndexedItem & Point3D & { transportNetwork: string };
 
-function isEligibleRaccourci(location: IndexedItem, shortcutNetwork: string[]): location is EligibleShortcut {
+function isEligibleRaccourci(location: IndexedItem, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): location is EligibleShortcut {
+    if (!location.kind?.includes('location')) return false;
     if (!location.transportNetwork) return false;
     if (!location.x || !location.y || !location.z) return false;
-    if (shortcutNetwork.includes('all')) return true;
-    if (location.transportNetwork==="tgv" && shortcutNetwork.includes('tgv')) return true;
+    if (shortcutNetwork.includes('ALL')) return true;
+    if (location.transportNetwork.startsWith('shortcut:') && shortcutNetwork.includes('SHORTCUTS')) return true;
+    if (location.transportNetwork.startsWith('shortcut:') && ownedMaps.includes(location.transportNetwork) && shortcutNetwork.includes('SHORTCUTS_REDUCED')) return true;
+    if (location.transportNetwork==="tgv" && shortcutNetwork.includes('TGV')) return true;
+    if (location.transportNetwork==="tgv" && location.type!=="Tanière" && shortcutNetwork.includes('TGV_REDUCED')) return true;
 
-    const shortcutType = location.transportNetwork.match(/shortcut:(.+)/);
-    if (shortcutType?.[1] && shortcutNetwork.includes(`raccourci:${shortcutType[1]}`)) return true;
+    if (shortcutNetwork.includes(location.transportNetwork)) return true;
     return false;
 }
 
-function getRaccourcis(index: GeoIndex, shortcutNetwork: string[]): EligibleShortcut[] {
-    return [...index.getAll()].filter(location => isEligibleRaccourci(location, shortcutNetwork));
+function getRaccourcis(index: GeoIndex, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): EligibleShortcut[] {
+    return [...index.getAll()].filter(location => isEligibleRaccourci(location, shortcutNetwork, ownedMaps));
 }
 
 let pathfinder: PathFinder3D | undefined;
@@ -28,7 +31,7 @@ let cachedShortcutNetwork: string[] | undefined;
 let pathFinderInitialization: Promise<void> | undefined;
 let wasmInitializationDurationMs = 0;
 
-function initializePathfinder(index: GeoIndex, shortcutNetwork: string[]): PathFinder3D {
+function initializePathfinder(index: GeoIndex, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): PathFinder3D {
     const nextPathfinder = new PathFinder3D(...GRID_BOUNDS);
 
     for (const lieu of index.getByKind("trou")) {
@@ -37,7 +40,7 @@ function initializePathfinder(index: GeoIndex, shortcutNetwork: string[]): PathF
         }
     }
 
-    const raccourcis = getRaccourcis(index, shortcutNetwork);
+    const raccourcis = getRaccourcis(index, shortcutNetwork, ownedMaps);
     const shortcutsByType = raccourcis.reduce<Map<string, EligibleShortcut[]>>((groups, raccourci) => {
         const group = groups.get(raccourci.transportNetwork) ?? [];
         group.push(raccourci);
@@ -64,7 +67,7 @@ function initializePathfinder(index: GeoIndex, shortcutNetwork: string[]): PathF
     return nextPathfinder;
 }
 
-export async function findPath(index: GeoIndex, start: Point3D, target: Point3D, shortcutNetwork: string[] = ['all']): Promise<PathResult> {
+export async function findPath(index: GeoIndex, start: Point3D, target: Point3D, shortcutNetwork: ShortcutNetworks[] = ['ALL'], ownedMaps: string[] = []): Promise<PathResult> {
     if (!pathFinderInitialization) {
         const initializationStartedAt = performance.now();
         pathFinderInitialization = initPathFinder().then(() => {
@@ -80,7 +83,7 @@ export async function findPath(index: GeoIndex, start: Point3D, target: Point3D,
     let pathfinderInitializationDurationMs = 0;
     if (!pathfinder || cachedIndex !== index || !networkUnchanged) {
         const initializationStartedAt = performance.now();
-        pathfinder = initializePathfinder(index, shortcutNetwork);
+        pathfinder = initializePathfinder(index, shortcutNetwork, ownedMaps);
         pathfinderInitializationDurationMs = performance.now() - initializationStartedAt;
         cachedIndex = index;
         cachedShortcutNetwork = network;

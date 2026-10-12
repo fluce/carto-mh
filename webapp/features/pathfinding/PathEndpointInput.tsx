@@ -37,9 +37,9 @@ function formatPoint(point: Point3D) {
 }
 
 function formatSuggestion(item: SearchableItem) {
-  let category = 'Monster';
+  let category = 'Monstre';
   if (item.kind.includes('location')) {
-    category = 'Location';
+    category = 'Lieu';
   } else if (item.kind.includes('troll')) {
     category = 'Troll';
   }
@@ -166,7 +166,7 @@ function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }
             aria-expanded={showSuggestions}
             aria-controls={`${id}-suggestions`}
             aria-activedescendant={activeSuggestionIndex >= 0 ? `${id}-suggestion-${activeSuggestionIndex}` : undefined}
-            placeholder="Name or x,y,z"
+            placeholder="Nom ou x,y,z"
           />
           {showSuggestions && suggestionPosition && createPortal(
             <div
@@ -198,8 +198,8 @@ function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }
               className="path-clear-button"
               type="button"
               onClick={() => onChange({ value: '', point: null })}
-              title={`Clear ${label}`}
-              aria-label={`Clear ${label}`}
+              title={`Effacer ${label}`}
+              aria-label={`Effacer ${label}`}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -212,8 +212,8 @@ function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }
             className="path-origin-button"
             type="button"
             onClick={onUseOrigin}
-            title="Use current position (Origin)"
-            aria-label="Use current position (Origin)"
+            title="Utiliser la position actuelle (origine)"
+            aria-label="Utiliser la position actuelle (origine)"
           >
             <svg className="path-origin-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.94 3A9.994 9.994 0 0 0 13 3.06V1h-2v2.06A9.994 9.994 0 0 0 3.06 11H1v2h2.06A9.994 9.994 0 0 0 11 20.94V23h2v-2.06A9.994 9.994 0 0 0 20.94 13H23v-2h-2.06ZM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" />

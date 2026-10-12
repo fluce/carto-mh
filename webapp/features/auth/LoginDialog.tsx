@@ -18,7 +18,7 @@ function LoginDialog() {
 
   return (
     <section className="login-panel" aria-labelledby="login-title">
-        <h1 id="login-title">Login required</h1>
+        <h1 id="login-title">Connexion requise</h1>
         <form onSubmit={handleSubmit}>
           <label>
             <span>ID</span>
@@ -32,7 +32,7 @@ function LoginDialog() {
             />
           </label>
           <label>
-            <span>Password</span>
+            <span>Mot de passe</span>
             <input
               type="password"
               value={secret}
@@ -42,7 +42,7 @@ function LoginDialog() {
             />
           </label>
           <button type="submit" disabled={loginPending}>
-            {loginPending ? 'Logging in...' : 'Log in'}
+            {loginPending ? 'Connexion en cours...' : 'Se connecter'}
           </button>
           {loginError && <p role="alert">{loginError}</p>}
         </form>

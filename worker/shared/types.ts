@@ -40,14 +40,14 @@ export interface CachedView {
 
 export interface InventoryItem {
   id: number;
-  equipped: boolean;
+  equipped: number;
   type: string;
   identified: boolean;
   name: string;
   magic: string;
-  description: string;
-  weight: number;
-  durability: number;
+  description: string | null;
+  weight: number | string;
+  durability: string;
 }
 
 export interface CachedInventory {

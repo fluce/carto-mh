@@ -25,12 +25,12 @@ export async function loadViewData() {
             parsedData[sectionName]=section;
             const d=i.split(';');
             if (d.length==5)
-                section.push({ id: Number.parseInt(d[0]), name: d[1], x: Number.parseInt(d[2]), y: Number.parseInt(d[3]), z: Number.parseInt(d[4]), type: sectionName });
+                section.push({ id: Number.parseInt(d[0]).toString(), name: d[1], x: Number.parseInt(d[2]), y: Number.parseInt(d[3]), z: Number.parseInt(d[4]), type: sectionName });
             else
                 if (currentSection=='trolls')
-                    section.push({ id: Number.parseInt(d[0]), /*name: trolls[Number.parseInt(d[0])]?.name,*/ x: Number.parseInt(d[1]), y: Number.parseInt(d[2]), z: Number.parseInt(d[3]), type: 'trolls' });
+                    section.push({ id: `troll:${Number.parseInt(d[0])}`, /*name: trolls[Number.parseInt(d[0])]?.name,*/ x: Number.parseInt(d[1]), y: Number.parseInt(d[2]), z: Number.parseInt(d[3]), type: 'trolls' });
                 else
-                    section.push({ id: Number.parseInt(d[0]), x: Number.parseInt(d[1]), y: Number.parseInt(d[2]), z: Number.parseInt(d[3]), type: sectionName });
+                    section.push({ id: Number.parseInt(d[0]).toString(), x: Number.parseInt(d[1]), y: Number.parseInt(d[2]), z: Number.parseInt(d[3]), type: sectionName });
         }
     }
     await updateIndex('view:origine', parsedData.origine ?? []);

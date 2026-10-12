@@ -14,6 +14,7 @@ interface PathInstruction {
   kind: 'start' | 'tgv' | 'shortcut' | 'walk';
   text: string;
   locationName: string;
+  locationType: string;
 }
 
 interface CalculationSummary {
@@ -30,23 +31,23 @@ function formatPoint(point: Point3D) {
 function parsePoint(value: string): Point3D {
   const coordinates = value.split(',').map(item => Number(item.trim()));
   if (coordinates.length !== 3 || coordinates.some(coordinate => !Number.isInteger(coordinate))) {
-    throw new Error('Choose a suggestion or enter three integers separated by commas.');
+    throw new Error('Choisissez une suggestion ou saisissez trois entiers séparés par des virgules.');
   }
   return { x: coordinates[0], y: coordinates[1], z: coordinates[2] };
 }
 
 function getLocationInfo(index: GeoIndex | null, point: Point3D) {
-  const locations = (index?.get(point) ?? [])
-    .filter(item => item.kind?.includes('location') || item.type === 'lieux');
-  const names = [...new Set(locations.map(item => item.name).filter(Boolean))];
+  const location = (index?.get(point) ?? [])
+    .filter(item => item.kind?.includes('location'))[0]
   return {
-    name: names.join(', '),
-    isTgv: locations.some(item => item.transportNetwork === 'tgv'),
+    name: location?.name ?? '',
+    type: location?.type ?? '',
+    isTgv: location?.transportNetwork === 'tgv',
   };
 }
 
 function formatCost(cost: number) {
-  return cost === 0 ? '' : ` (cost: ${cost})`;
+  return cost === 0 ? '' : ` (coût : ${cost})`;
 }
 
 function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruction[] {
@@ -55,8 +56,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
   const startLocation = getLocationInfo(index, path[0]);
   const instructions: PathInstruction[] = [{
     kind: 'start',
-    text: `Start at ${formatPoint(path[0])}`,
+    text: `Départ depuis ${formatPoint(path[0])}`,
     locationName: startLocation.name,
+    locationType: startLocation.type,
   }];
   let stepIndex = 1;
 
@@ -66,8 +68,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
       const destination = getLocationInfo(index, step);
       instructions.push({
         kind: destination.isTgv ? 'tgv' : 'shortcut',
-        text: `Take ${destination.isTgv ? 'TGV' : 'shortcut'} to ${formatPoint(step)}${formatCost(step.cost)}`,
+        text: `Prendre ${destination.isTgv ? 'le TGV' : 'un raccourci'} jusqu’à ${formatPoint(step)}${formatCost(step.cost)}`,
         locationName: destination.name,
+        locationType: destination.type,
       });
       stepIndex += 1;
       continue;
@@ -84,8 +87,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
     const destination = getLocationInfo(index, path[walkEndIndex]);
     instructions.push({
       kind: 'walk',
-      text: `Walk ${walkStepCount} ${walkStepCount === 1 ? 'step' : 'steps'} to ${formatPoint(path[walkEndIndex])}${formatCost(walkCost)}`,
+      text: `Parcourir ${walkStepCount} ${walkStepCount === 1 ? 'étape' : 'étapes'} jusqu’à ${formatPoint(path[walkEndIndex])}${formatCost(walkCost)}`,
       locationName: destination.name,
+      locationType: destination.type,
     });
     stepIndex = walkEndIndex + 1;
   }
@@ -154,20 +158,20 @@ function PathFindingPanel() {
   return (
     <div id="path-finding-panel" className={isOpen ? 'open' : ''}>
       <div className="path-finding-header">
-        {isOpen && <h2>Find Path</h2>}
+        {isOpen && <h2>Calcul d’itinéraire</h2>}
         <button
           type="button"
           className={isOpen ? 'path-finding-close' : ''}
-          aria-label={isOpen ? 'Close pathfinder' : 'Open pathfinder'}
+          aria-label={isOpen ? 'Fermer le calculateur d’itinéraire' : 'Ouvrir le calculateur d’itinéraire'}
           onClick={toggleOpen}
         >
-          {isOpen ? '×' : 'Find path'}
+          {isOpen ? '×' : 'Itinéraire'}
         </button>
       </div>
       {isOpen && (
         <form onSubmit={handleFind}>
           <label>
-            <span>Shortcut network</span>
+            <span>Réseaux de raccourcis</span>
             <select
               multiple
               size={Math.min(shortcutNetworks.length, 5)}
@@ -181,7 +185,7 @@ function PathFindingPanel() {
           </label>
           <PathEndpointInput
             id="path-from"
-            label="From"
+            label="Départ"
             endpoint={from}
             onChange={setFrom}
             index={index}
@@ -189,15 +193,15 @@ function PathFindingPanel() {
           />
           <PathEndpointInput
             id="path-to"
-            label="To"
+            label="Arrivée"
             endpoint={to}
             onChange={setTo}
             index={index}
           />
-          <button type="submit" disabled={!findPath}>Find</button>
+          <button type="submit" disabled={!findPath}>Calculer</button>
           {error && <p role="alert">{error}</p>}
           {path.length > 0 && (
-            <ol className="path-instructions" aria-label="Journey steps">
+            <ol className="path-instructions" aria-label="Étapes de l’itinéraire">
               {getInstructions(path, index).map((instruction, instructionIndex, instructions) => (
                 <li
                   key={`${instruction.kind}-${instructionIndex}`}
@@ -205,7 +209,7 @@ function PathFindingPanel() {
                 >
                   <span className="path-step-description">{instruction.text}</span>
                   {instruction.locationName && (
-                    <small className="path-step-location">{instruction.locationName}</small>
+                    <small className="path-step-location">{instruction.locationName} ({instruction.locationType})</small>
                   )}
                 </li>
               ))}
@@ -215,7 +219,7 @@ function PathFindingPanel() {
       )}
       {isOpen && calculation && (
         <div className="path-summary" aria-live="polite">
-          <span>Total cost: <strong>{calculation.cost}</strong></span>
+          <span>Coût total : <strong>{calculation.cost}</strong></span>
           {calculation.timings && calculation.stats ? (
             <button
               className="path-summary-toggle"
@@ -224,10 +228,10 @@ function PathFindingPanel() {
               aria-controls="path-timing-details"
               onClick={() => setShowCalculationDetails(!showCalculationDetails)}
             >
-              Total time: <strong>{calculation.durationMs.toFixed(2)} ms</strong>
+              Durée totale : <strong>{calculation.durationMs.toFixed(2)} ms</strong>
             </button>
           ) : (
-            <span>Total time: <strong>{calculation.durationMs.toFixed(2)} ms</strong></span>
+            <span>Durée totale : <strong>{calculation.durationMs.toFixed(2)} ms</strong></span>
           )}
           {calculation.timings && calculation.stats && (
             <div
@@ -235,15 +239,15 @@ function PathFindingPanel() {
               id="path-timing-details"
               hidden={!showCalculationDetails}
             >
-              <span>A* call: <strong>{calculation.timings.searchDurationMs.toFixed(2)} ms</strong></span>
-              <span>Expanded nodes: <strong>{calculation.stats.expandedNodes.toLocaleString()}</strong></span>
-              <span>Popped nodes: <strong>{calculation.stats.poppedNodes.toLocaleString()}</strong></span>
-              <span>Stale pops: <strong>{calculation.stats.stalePops.toLocaleString()}</strong></span>
-              <span>Relaxations: <strong>{calculation.stats.relaxations.toLocaleString()}</strong></span>
-              <span>Peak queue: <strong>{calculation.stats.maxOpenSetSize.toLocaleString()}</strong></span>
-              <span>Shortcut endpoints: <strong>{calculation.stats.shortcutEndpointCount.toLocaleString()}</strong></span>
-              <span>Pathfinder setup: <strong>{calculation.timings.pathfinderInitializationDurationMs.toFixed(2)} ms</strong></span>
-              <span>WASM init: <strong>{calculation.timings.wasmInitializationDurationMs.toFixed(2)} ms</strong></span>
+              <span>Appel A* : <strong>{calculation.timings.searchDurationMs.toFixed(2)} ms</strong></span>
+              <span>Nœuds explorés : <strong>{calculation.stats.expandedNodes.toLocaleString()}</strong></span>
+              <span>Nœuds extraits : <strong>{calculation.stats.poppedNodes.toLocaleString()}</strong></span>
+              <span>Extractions obsolètes : <strong>{calculation.stats.stalePops.toLocaleString()}</strong></span>
+              <span>Mises à jour : <strong>{calculation.stats.relaxations.toLocaleString()}</strong></span>
+              <span>Taille maximale de la file : <strong>{calculation.stats.maxOpenSetSize.toLocaleString()}</strong></span>
+              <span>Extrémités de raccourcis : <strong>{calculation.stats.shortcutEndpointCount.toLocaleString()}</strong></span>
+              <span>Initialisation du calculateur : <strong>{calculation.timings.pathfinderInitializationDurationMs.toFixed(2)} ms</strong></span>
+              <span>Initialisation WASM : <strong>{calculation.timings.wasmInitializationDurationMs.toFixed(2)} ms</strong></span>
             </div>
           )}
         </div>

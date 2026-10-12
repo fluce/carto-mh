@@ -37,7 +37,7 @@ function parseLine(line: string, guildNames: ReadonlyMap<string, string>): Troll
     const items=line.split(";");
     const guildId = items[6] ? `guild:${items[6]}` : null;
     return {
-        id: items[0],
+        id: `troll:${items[0]}`,
         name: items[1],
         race: items[2],
         level: items[3],

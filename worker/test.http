@@ -14,6 +14,10 @@ GET http://localhost:8787/api/inventory
 Authorization: Bearer {{$dotenv SESSION}}
 
 
+###
+
+GET https://sp.mountyhall.com/SP_Equipement.php?Numero={{$dotenv MH_USER_ID}}&Motdepasse={{$dotenv MH_USER_SECRET}}&Split=1&withSolidite=1
+
 
 ### 1789897738022
 

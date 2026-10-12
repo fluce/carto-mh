@@ -28,14 +28,14 @@ export interface MonsterRecord extends MonsterDetails {
 
 export interface InventoryItem {
   id: number;
-  equipped: boolean;
+  equipped: number;
   type: string;
   identified: boolean;
   name: string;
   magic: string;
-  description: string;
-  weight: number;
-  durability: number;
+  description: string | null;
+  weight: number | string;
+  durability: string;
 }
 
 export interface CompressedHole {
@@ -88,7 +88,7 @@ export interface SearchableItem extends CoordinateIndexedItem {
 }
 
 export interface SourceItem extends Partial<Point3D> {
-  id: string | number;
+  id: string;
   kind?: string[];
   name?: string;
   type?: string;
@@ -137,6 +137,14 @@ export interface AppData {
   tgv: unknown[];
   raccourcis?: IndexedItem[];
 }
+
+export type ShortcutNetworks = 
+  | 'ALL'
+  | 'TGV'
+  | 'TGV_REDUCED'
+  | 'SHORTCUTS'
+  | 'SHORTCUTS_REDUCED'
+  | string;
 
 export interface PathStep extends Point3D {
   cost: number;
