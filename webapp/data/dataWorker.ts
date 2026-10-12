@@ -1,5 +1,6 @@
 import { db } from './persistence/db.ts';
 import { update } from './sources/update.ts';
+import { loadInventory } from './sources/inventory.ts';
 import * as index from './index/index.ts';
 import type { DataWorkerRequest, DataWorkerResponse, MonsterRecord } from '../shared/types';
 
@@ -14,6 +15,9 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
                 break;
             case 'load':
                 self.postMessage({ type: 'result:load', message_id: event.data.message_id, result: await load() } satisfies DataWorkerResponse);
+                break;
+            case 'inventory':
+                self.postMessage({ type: 'result:inventory', message_id: event.data.message_id, result: await loadInventory() } satisfies DataWorkerResponse);
                 break;
             case 'update':
                 self.postMessage({ type: 'result:update', message_id: event.data.message_id, result: await update() } satisfies DataWorkerResponse);

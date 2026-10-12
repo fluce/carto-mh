@@ -17,8 +17,7 @@ function LoginDialog() {
   }
 
   return (
-    <div className="login-backdrop">
-      <dialog open className="login-dialog" aria-labelledby="login-title">
+    <section className="login-panel" aria-labelledby="login-title">
         <h1 id="login-title">Login required</h1>
         <form onSubmit={handleSubmit}>
           <label>
@@ -47,8 +46,7 @@ function LoginDialog() {
           </button>
           {loginError && <p role="alert">{loginError}</p>}
         </form>
-      </dialog>
-    </div>
+    </section>
   );
 }
 

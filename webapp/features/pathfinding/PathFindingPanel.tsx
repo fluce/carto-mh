@@ -153,9 +153,17 @@ function PathFindingPanel() {
 
   return (
     <div id="path-finding-panel" className={isOpen ? 'open' : ''}>
-      <button type="button" onClick={toggleOpen}>
-        {isOpen ? 'Close pathfinder' : 'Find path'}
-      </button>
+      <div className="path-finding-header">
+        {isOpen && <h2>Find Path</h2>}
+        <button
+          type="button"
+          className={isOpen ? 'path-finding-close' : ''}
+          aria-label={isOpen ? 'Close pathfinder' : 'Open pathfinder'}
+          onClick={toggleOpen}
+        >
+          {isOpen ? '×' : 'Find path'}
+        </button>
+      </div>
       {isOpen && (
         <form onSubmit={handleFind}>
           <label>

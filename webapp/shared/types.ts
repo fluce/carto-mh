@@ -26,6 +26,18 @@ export interface MonsterRecord extends MonsterDetails {
   lastRefresh?: string;
 }
 
+export interface InventoryItem {
+  id: number;
+  equipped: boolean;
+  type: string;
+  identified: boolean;
+  name: string;
+  magic: string;
+  description: string;
+  weight: number;
+  durability: number;
+}
+
 export interface CompressedHole {
   x: number;
   y: number;
@@ -162,6 +174,7 @@ export interface PathNetworkOption {
 export interface WorkerRequestMap {
   login: { id: string; secret: string };
   load: Record<string, never>;
+  inventory: Record<string, never>;
   update: Record<string, never>;
   monsters: { ids: Array<Pick<IndexedItem, 'id' | 'name'>> };
 }
@@ -169,6 +182,7 @@ export interface WorkerRequestMap {
 export interface WorkerResultMap {
   login: { success: true };
   load: IndexSnapshot;
+  inventory: InventoryItem[];
   update: unknown;
   monsters: Array<MonsterDetails & { id: string | number }>;
 }
@@ -181,6 +195,7 @@ export type DataWorkerResponse =
   | { type: 'ready' | 'need:login' }
   | { type: 'result:login'; message_id: string; result: WorkerResultMap['login'] }
   | { type: 'result:load'; message_id: string; result: WorkerResultMap['load'] }
+  | { type: 'result:inventory'; message_id: string; result: WorkerResultMap['inventory'] }
   | { type: 'result:update'; message_id: string; result: WorkerResultMap['update'] }
   | { type: 'result:monsters'; message_id: string; result: WorkerResultMap['monsters'] }
-  | { type: 'error:login' | 'error:load' | 'error:update' | 'error:monsters' | 'error:unknown'; message_id?: string; error: string };
+  | { type: 'error:login' | 'error:load' | 'error:inventory' | 'error:update' | 'error:monsters' | 'error:unknown'; message_id?: string; error: string };

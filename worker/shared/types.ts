@@ -38,6 +38,23 @@ export interface CachedView {
   updateDate: number;
 }
 
+export interface InventoryItem {
+  id: number;
+  equipped: boolean;
+  type: string;
+  identified: boolean;
+  name: string;
+  magic: string;
+  description: string;
+  weight: number;
+  durability: number;
+}
+
+export interface CachedInventory {
+  items: InventoryItem[];
+  loadedAt: number;
+}
+
 export interface MonsterLookupItem {
   id: string | number;
   name: string;

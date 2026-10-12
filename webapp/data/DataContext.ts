@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Index } from './index/indexCore.ts';
-import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, WorkerRequestMap, WorkerResultMap } from '../shared/types';
+import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, WorkerRequestMap, WorkerResultMap } from '../shared/types';
 
 type PendingCall = {
   resolve: (result: unknown) => void;
@@ -9,7 +9,9 @@ type PendingCall = {
 
 export interface DataContextValue {
   data: AppData | null;
+  inventory: InventoryItem[] | null;
   index: Index | null;
+  dataReady: boolean;
   legend: Record<string, DataGroup> | null;
   selection: CoordinateIndexedItem | null;
   setSelection: Dispatch<SetStateAction<CoordinateIndexedItem | null>>;
@@ -52,7 +54,8 @@ function setupWorker() {
           case 'result:login':
           case 'result:load':
           case 'result:update':
-          case 'result:monsters': {
+          case 'result:monsters':
+          case 'result:inventory': {
             const call = calls.get(event.data.message_id);
             if (call) {
               console.log(`Resolving call for worker result with id: ${event.data.message_id}`);
@@ -67,6 +70,7 @@ function setupWorker() {
           case 'error:load':
           case 'error:update':
           case 'error:monsters':
+          case 'error:inventory':
           case 'error:unknown':
             console.error("Worker reported an error", event.data.error);
             if (event.data.message_id) {
@@ -118,9 +122,15 @@ async function queryMonsters(ids: Array<Pick<IndexedItem, 'id' | 'name'>>) {
   return callWorker('monsters', { ids })
 }
 
+async function loadInventory() {
+  return callWorker('inventory', {});
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[] | null>(null);
   const [index, setIndex] = useState<Index | null>(null);
+  const [dataReady, setDataReady] = useState(false);
   const [selection, setSelection] = useState<CoordinateIndexedItem | null>(null);
   const [highlighted, setHighlighted] = useState<CoordinateIndexedItem | null>(null);
   const sceneRenderers = useRef(new Set<() => void>());
@@ -157,10 +167,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const indexInstance = new Index(loadedData);
         setIndex(indexInstance);        
         setData(buildDataFromIndex(indexInstance));
+        setDataReady(true);
       })
       .catch(error => {
         console.error('Unable to load data:', error);
       });
+
+    loadInventory()
+      .then(loadedInventory => setInventory(loadedInventory))
+      .catch(error => console.error('Unable to load inventory:', error));
 
     return () => {};
   }, []);
@@ -226,7 +241,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => ({
     data,
+    inventory,
     index,
+    dataReady,
     legend: data?.groups ?? null,
     selection,
     setSelection,
@@ -238,7 +255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loginError,
     loginPending,
     submitLogin,
-  }), [data, index, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender]);
+  }), [data, inventory, index, dataReady, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }

@@ -44,12 +44,16 @@ function MyThree() {
     const refContainer = useRef<HTMLDivElement>(null);
         const pathUpdater = useRef<((nextPath: PathStep[]) => void) | null>(null);
     const { setHighlighted, setSelection, index, data, registerSceneRenderer } = useData();
+    const dataRef = useRef(data);
+    dataRef.current = data;
+    const hasData = data !== null;
     const { path } = usePathFinding();
     const currentPath = useRef<PathStep[]>(path);
 
   useEffect(() => {
         const container = refContainer.current;
-        if (!index || !data || !container) return;
+        const sceneData = dataRef.current;
+        if (!index || !sceneData || !container) return;
 
         let disposed = false;
         let frameId: number | null = null;
@@ -171,7 +175,7 @@ function MyThree() {
         onWindowResize();
 
         const loadScene = async () => {
-            const result = await createScene(data, index, path);
+            const result = await createScene(sceneData, index, path);
             if (disposed) {
                 disposeScene(result.scene);
                 return;
@@ -212,7 +216,7 @@ function MyThree() {
             renderer.domElement.remove();
             if (pathUpdater.current === renderPath) pathUpdater.current = null;
         };
-    }, [data, index, registerSceneRenderer]);
+    }, [hasData, index, registerSceneRenderer]);
 
     useLayoutEffect(() => {
         currentPath.current = path;

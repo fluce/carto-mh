@@ -1,5 +1,6 @@
 export const UPSTREAM_URL = 'https://sp.mountyhall.com/SP_Vue2.php';
 export const PROFILE_URL = 'https://sp.mountyhall.com/SP_Profil2.php';
+export const INVENTORY_URL = 'https://sp.mountyhall.com/SP_Equipement.php';
 export const TROLLS_URL = "https://www.mountyhall.com/ftp/Public_Trolls.txt";
 export const TGV_URL = "https://ftp.mountyhall.com/Public_StationsTGV.json";
 export const GUILDES_URL = "https://ftp.mountyhall.com/Public_Guildes.json";

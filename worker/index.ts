@@ -4,6 +4,7 @@ import { loadTrolls, fetchTrolls } from './domains/trolls.ts';
 import { loadGuildes, fetchGuildes } from './domains/guildes.ts';
 import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './domains/locations.ts';
 import { queryMonstersAttributes } from './domains/monsters.ts';
+import { fetchInventory } from './domains/inventory.ts';
 import type { ResponseHeaders, WorkerEnv } from './shared/types.ts';
 
 export default {
@@ -32,6 +33,8 @@ export default {
             return await fetchTrolls(request, env, respHeaders);
         case 'GET /api/guildes':
             return await fetchGuildes(request, env, respHeaders);
+        case 'GET /api/inventory':
+            return await fetchInventory(request, env, respHeaders);
         case 'GET /api/locations':
             return await fetchLocations(request, env, respHeaders);
         case 'PUT /api/locations':
