@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to Cloudflare
 
 on:
   push:
@@ -8,68 +8,70 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '20'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: wasm32-unknown-unknown
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
 
-    - name: Install wasm-pack
-      run: cargo install wasm-pack
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build WASM module
-      working-directory: findpath_wasm
-      run: wasm-pack build --target web --release --out-dir pkg
+      - name: Build WASM module
+        working-directory: findpath_wasm
+        run: wasm-pack build --target web --release --out-dir pkg
 
-    - name: Generate Worker types
-      run: npx wrangler types --cwd worker
+      - name: Generate Worker types
+        run: npx wrangler types --cwd worker
 
-    - name: Get data
-      env:
-        MH_USER_ID: ${{ secrets.MH_USER_ID }}
-        MH_USER_SECRET: ${{ secrets.MH_USER_SECRET }}
-      run: |
-        node ./loader/index.mjs
+      - name: Build the app
+        run: npm run build
 
-    - name: Build the app
-      run: npm run build
-
-    - name: upload artifacts
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: dist/
+      - name: Upload Cloudflare build
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-build
+          path: |
+            dist/carto_mh/index.mjs
+            dist/carto_mh/wrangler.json
+            dist/client/**
+            dist/client/.assetsignore
+          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    
-    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
-    
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    
     steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-        id: deployment
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          branch: gh-pages
-          folder: dist
-          clean: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Cloudflare build
+        uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-build
+          path: dist/
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config dist/carto_mh/wrangler.json

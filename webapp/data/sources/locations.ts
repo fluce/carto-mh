@@ -12,6 +12,9 @@ async function load() {
             Authorization: `Bearer ${await getToken()}`
         }
     });
+    if (response.status === 404) {
+        return { locations: [], compressedHoles: [] };
+    }
     return await response.json();
 }
 
