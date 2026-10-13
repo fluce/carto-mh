@@ -1,4 +1,7 @@
-export type WorkerEnv = Env;
+export type WorkerEnv = Env & {
+  CREDENTIALS_VALIDATION_MOCK?: string;
+  CREDENTIALS_ENCRYPTION_KEY?: string;
+};
 export type ResponseHeaders = Record<string, string>;
 
 export interface CredentialInput {
