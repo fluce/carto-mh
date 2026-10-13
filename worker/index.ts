@@ -1,5 +1,5 @@
 import { fetchView } from './domains/view.ts';
-import { createToken } from './auth/sessions.ts';
+import { createToken, getProfile } from './auth/sessions.ts';
 import { loadTrolls, fetchTrolls } from './domains/trolls.ts';
 import { loadGuildes, fetchGuildes } from './domains/guildes.ts';
 import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './domains/locations.ts';
@@ -27,6 +27,8 @@ export default {
         switch (route) {
         case 'POST /api/token':
             return await createToken(request, env, respHeaders);
+        case 'GET /api/profile':
+            return await getProfile(request, env, respHeaders);
         case 'GET /api/view':
             return await fetchView(request, env, respHeaders);
         case 'GET /api/trolls':

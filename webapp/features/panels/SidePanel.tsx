@@ -23,7 +23,7 @@ function SidePanel() {
   const [updatePending, setUpdatePending] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
-  const { selection, legend, index, inventory, requestSceneRender } = useData();
+  const { selection, legend, index, inventory, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
 
   useEffect(() => {
@@ -71,7 +71,7 @@ function SidePanel() {
       </button>
       {isOpen && (
         <div id="side-panel-content">
-          <DataActions pending={updatePending} error={updateError} onUpdate={updateData} />
+           { admin && <DataActions pending={updatePending} error={updateError} onUpdate={updateData} />}
           <Accordion
             key={selection ? `${selection.type}:${selection.id}` : 'none'}
             initialOpenId={selection ? 'selection' : 'legend'}

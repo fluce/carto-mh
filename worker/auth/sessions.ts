@@ -58,8 +58,18 @@ export async function createToken(request: Request, env: WorkerEnv, respHeaders:
         return jsonResponse({ error: 'Token storage failed' }, 500, respHeaders);
     }
 
-    return jsonResponse({ token: token.token }, 201, respHeaders);
+    return jsonResponse({ token: token.token, profile: { id, isAdmin: checkIfAdmin(env, id) } }, 201, respHeaders);
 }
+
+export async function getProfile(request: Request, env: WorkerEnv, respHeaders: ResponseHeaders): Promise<Response> {
+    const credentials = await getCredentials(request.headers, env);
+    if (!credentials) {
+        return jsonResponse({ error: 'Unauthorized' }, 401, respHeaders);
+    }
+
+    return jsonResponse({ id: credentials.id, isAdmin: credentials.isAdmin }, 200, respHeaders);
+}
+
 
 export async function getCredentials(headers: Headers, env: WorkerEnv): Promise<Credentials | null> {
     
@@ -103,7 +113,15 @@ export async function getCredentials(headers: Headers, env: WorkerEnv): Promise<
     await env.USER_DATA.put(`session:${sessionId}`, JSON.stringify({ ...sessionData, lastAccess: Date.now() }), { expirationTtl: 24*3600*30 });
 
     const secret = await decryptSecret(encryptedSecret, env.CREDENTIALS_ENCRYPTION_KEY);
-    return { id, secret, idHash };
+
+    const isAdmin = checkIfAdmin(env, id);
+
+    return { id, secret, idHash, isAdmin };
+}
+
+function checkIfAdmin(env: WorkerEnv, id: string): boolean {
+    const adminIds = (env.ADMIN_IDS ?? '').split(','); // Replace with your actual admin IDs
+    return adminIds.includes(id);
 }
 
 async function readCredentials(request: Request): Promise<CredentialInput> {

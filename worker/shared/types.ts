@@ -10,6 +10,7 @@ export interface Credentials {
   id: string;
   secret: string;
   idHash: string;
+  isAdmin: boolean;
 }
 
 export interface EncryptedSecret {

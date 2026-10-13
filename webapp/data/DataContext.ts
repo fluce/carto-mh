@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Index } from './index/indexCore.ts';
-import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, WorkerRequestMap, WorkerResultMap } from '../shared/types';
+import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, Profile, WorkerRequestMap, WorkerResultMap } from '../shared/types';
 
 type PendingCall = {
   resolve: (result: unknown) => void;
@@ -23,6 +23,7 @@ export interface DataContextValue {
   loginError: string | null;
   loginPending: boolean;
   submitLogin: (id: string, secret: string) => Promise<{ success: true }>;
+  admin: boolean;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);
@@ -43,13 +44,13 @@ function subscribeToLoginRequired(listener: () => void) {
 function setupWorker() {
   console.log("Starting Worker")
   const worker = new Worker(new URL('./dataWorker.ts', import.meta.url), { type: 'module' });
-  const ready = new Promise<void>((resolve) => {
+  const ready = new Promise<Profile>((resolve) => {
     worker.onmessage = (event: MessageEvent<DataWorkerResponse>) => {
         console.log("Received message from worker:", event.data);
         switch (event.data.type) {
           case 'ready':
             console.log("Worker is ready");
-            resolve();
+            resolve(event.data.profile);
             break;
           case 'result:login':
           case 'result:load':
@@ -92,7 +93,7 @@ function setupWorker() {
       worker.terminate();
     };
   });
-  return {workerForLogin: worker, ready: ready.then(() => worker)};
+  return {workerForLogin: worker, ready: ready.then(profile => ({ worker, profile }))};
 }
 
 const { workerForLogin, ready: workerPromise } = setupWorker();
@@ -103,7 +104,7 @@ export async function callWorker<Action extends keyof WorkerRequestMap>(
   payload: WorkerRequestMap[Action],
 ): Promise<WorkerResultMap[Action]>
 {
-  const worker = type === 'login' ? workerForLogin : await workerPromise;
+  const worker = type === 'login' ? workerForLogin : (await workerPromise).worker;
   const id = crypto.randomUUID();
   return new Promise<WorkerResultMap[Action]>((resolve, reject) => {
     calls.set(id, {
@@ -112,6 +113,11 @@ export async function callWorker<Action extends keyof WorkerRequestMap>(
     });
     worker.postMessage({ type, message_id: id, ...payload });
   });
+}
+
+export async function getProfile(): Promise<Profile> {
+  const { profile } = await workerPromise;
+  return profile;
 }
 
 async function loadData() {
@@ -131,6 +137,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [inventory, setInventory] = useState<InventoryItem[] | null>(null);
   const [index, setIndex] = useState<Index | null>(null);
   const [dataReady, setDataReady] = useState(false);
+  const [admin, setAdmin] = useState(false);
   const [selection, setSelection] = useState<CoordinateIndexedItem | null>(null);
   const [highlighted, setHighlighted] = useState<CoordinateIndexedItem | null>(null);
   const sceneRenderers = useRef(new Set<() => void>());
@@ -147,6 +154,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoginError(null);
     try {
       const result = await callWorker('login', { id, secret });
+      setAdmin(result.profile.isAdmin);
       loginRequired = false;
       console.log("Login accepted");
       setNeedsLogin(false);
@@ -177,6 +185,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .then(loadedInventory => setInventory(loadedInventory))
       .catch(error => console.error('Unable to load inventory:', error));
 
+    getProfile().then(profile => setAdmin(profile.isAdmin));
     return () => {};
   }, []);
 
@@ -255,7 +264,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loginError,
     loginPending,
     submitLogin,
-  }), [data, inventory, index, dataReady, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender]);
+    admin
+  }), [data, inventory, index, dataReady, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, admin]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }

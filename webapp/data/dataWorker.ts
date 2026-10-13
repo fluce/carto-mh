@@ -10,8 +10,9 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
     try {
         switch (event.data?.type) {
             case 'login':
-                self.postMessage({ type: 'result:login', message_id: event.data.message_id, result: await login(event.data.id, event.data.secret) } satisfies DataWorkerResponse);
-                self.postMessage({ type: 'ready' });
+                const loginResult = await login(event.data.id, event.data.secret);
+                self.postMessage({ type: 'result:login', message_id: event.data.message_id, result: loginResult } satisfies DataWorkerResponse);
+                self.postMessage({ type: 'ready', profile: loginResult.profile });
                 break;
             case 'load':
                 self.postMessage({ type: 'result:load', message_id: event.data.message_id, result: await load() } satisfies DataWorkerResponse);
@@ -40,7 +41,14 @@ if (!token) {
     self.postMessage({ type: 'need:login' });
 } else {
     console.log('Token found, no need to login', token);
-    self.postMessage({ type: 'ready' });
+    const profile = await getProfile();
+    if (!profile || !profile.id) {
+        console.log('Invalid token, need login');
+        self.postMessage({ type: 'need:login' });
+    } else {
+        console.log('Profile fetched:', profile);
+        self.postMessage({ type: 'ready', profile });
+    }
 }
 
 async function getCachedToken() {
@@ -61,8 +69,20 @@ async function load() {
     return index.getIndex();
 }
 
+async function getProfile(): Promise<{ id: string, isAdmin: boolean }> {
+    const response = await fetch('/api/profile', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${await getCachedToken()}`
+        }
+    });
+    if (!response.ok) {
+        console.log(`Failed to fetch profile: ${response.statusText}`);
+    }
+    return await response.json() as { id: string, isAdmin: boolean };
+}
 
-async function login(id: string, secret: string): Promise<{ success: true }> {
+async function login(id: string, secret: string): Promise<{ success: true, profile: { id: string, isAdmin: boolean } }> {
     console.log('Logging in with id:', id);
     const response = await fetch('/api/token', { 
         method: 'POST', 
@@ -74,10 +94,10 @@ async function login(id: string, secret: string): Promise<{ success: true }> {
     if (!response.ok) {
         throw new Error(`Login failed: ${response.statusText}`);
     }
-    const result = await response.json() as { token: string };
+    const result = await response.json() as { token: string, profile: { id: string, isAdmin: boolean } };
     await db.put('keyval', result.token, 'token');
     token = result.token;
-    return { success: true };
+    return { success: true, profile: result.profile };
 }
 
 async function monsters(ids: Array<Pick<MonsterRecord, 'id'> & { name?: string }>): Promise<MonsterRecord[]> {

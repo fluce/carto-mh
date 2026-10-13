@@ -187,8 +187,13 @@ export interface WorkerRequestMap {
   monsters: { ids: Array<Pick<IndexedItem, 'id' | 'name'>> };
 }
 
+export interface Profile {
+  id: string;
+  isAdmin: boolean;
+}
+
 export interface WorkerResultMap {
-  login: { success: true };
+  login: { success: true; profile: Profile };
   load: IndexSnapshot;
   inventory: InventoryItem[];
   update: unknown;
@@ -200,7 +205,8 @@ export type DataWorkerRequest = {
 }[keyof WorkerRequestMap];
 
 export type DataWorkerResponse =
-  | { type: 'ready' | 'need:login' }
+  | { type: 'ready'; profile: Profile }
+  | { type: 'need:login' }
   | { type: 'result:login'; message_id: string; result: WorkerResultMap['login'] }
   | { type: 'result:load'; message_id: string; result: WorkerResultMap['load'] }
   | { type: 'result:inventory'; message_id: string; result: WorkerResultMap['inventory'] }

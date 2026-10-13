@@ -3,6 +3,7 @@
 	"main": "index.ts",
 	"compatibility_date": "2026-09-19",
 	"vars": {
+		"ADMIN_IDS": "112796",
 		// Comma-separated exact origins allowed to call the relay.
 		"ALLOWED_ORIGINS": "https://fluce.github.io,http://localhost:5173,https://carto-mh.alderoth.net,http://localhost:5174"
 	},

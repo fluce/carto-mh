@@ -46,7 +46,7 @@ export async function fetchLocations(request: Request, env: WorkerEnv, respHeade
 export async function updateLocations(request: Request, env: WorkerEnv, respHeaders: ResponseHeaders): Promise<Response> {
     const credentials = await getCredentials(request.headers, env);
 
-    if (!credentials) {
+    if (!credentials || !credentials.isAdmin) {
         return new Response('Unauthorized', { status: 401, headers: respHeaders });
     }
 
