@@ -45,6 +45,13 @@ export async function fetchView(request: Request, env: WorkerEnv, respHeaders: R
         const data = await upstreamResponse.arrayBuffer();
         const decodedData = new TextDecoder('iso-8859-1').decode(data);
 
+        if (decodedData.startsWith('Erreur')) {
+            if (decodedData.startsWith('Erreur 3 ')) {
+                return new Response('Unauthorized', { status: 401, headers: respHeaders });
+            }
+            return new Response('Upstream returned an error', { status: 502, headers: respHeaders });
+        }
+
         await env.USER_DATA.put(`view:${id}`, JSON.stringify({ data: decodedData, updateDate: Date.now() }), { expirationTtl: 12*60*60 });
         return new Response(decodedData, {
             status: upstreamResponse.status,

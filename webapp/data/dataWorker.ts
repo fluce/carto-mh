@@ -15,7 +15,12 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
                 self.postMessage({ type: 'ready', profile: loginResult.profile });
                 break;
             case 'load':
-                self.postMessage({ type: 'result:load', message_id: event.data.message_id, result: await load() } satisfies DataWorkerResponse);
+                const loadResult = await load();
+                if (loadResult) {
+                    self.postMessage({ type: 'result:load', message_id: event.data.message_id, result: loadResult } satisfies DataWorkerResponse);
+                } else {
+                    self.postMessage({ type: 'need:login' });
+                }
                 break;
             case 'inventory':
                 self.postMessage({ type: 'result:inventory', message_id: event.data.message_id, result: await loadInventory() } satisfies DataWorkerResponse);
@@ -62,10 +67,14 @@ export async function getToken() {
     return getCachedToken();
 }
 
-async function load() {
+async function load(): Promise<ReturnType<typeof index.getIndex> | false> {
     console.log('Loading data in worker');
-    await index.load();
-    console.log('New data loaded',index);
+    const ret=await index.load();
+    if (!ret) {
+        console.error('Failed to load new data');
+        return false;
+    }
+    console.log('New data loaded',ret);
     return index.getIndex();
 }
 

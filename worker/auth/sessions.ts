@@ -78,45 +78,50 @@ export async function getCredentials(headers: Headers, env: WorkerEnv): Promise<
         return null;
     }
 
-    if (!env.USER_DATA || !env.CREDENTIALS_ENCRYPTION_KEY) {
-        throw new Error('Token storage is not configured');
-    }
+    try {
+        if (!env.USER_DATA || !env.CREDENTIALS_ENCRYPTION_KEY) {
+            throw new Error('Token storage is not configured');
+        }
 
-    const decodedToken = base64ToBytes(token);
-    if (decodedToken.length !== 48) {
+        const decodedToken = base64ToBytes(token);
+        if (decodedToken.length !== 48) {
+            return null;
+        }
+        const idHash = bytesToBase64(decodedToken.slice(0, 32));
+        const sessionId = bytesToBase64(decodedToken.slice(32));
+
+        const data = await env.USER_DATA.get<StoredUserRecord>(`user:${idHash}`, { type: 'json' });
+        if (!data) {
+            console.log(`User data not found for idHash: ${idHash}`);
+            return null;
+        }
+        const sessionData = await env.USER_DATA.get<StoredSessionRecord>(`session:${sessionId}`, { type: 'json' });
+        if (!sessionData) {
+            console.log(`Session data not found for sessionId: ${sessionId}`);
+            await env.USER_DATA.put(`user:${idHash}`, JSON.stringify({
+                ...data,
+                sessions: (data?.sessions ?? []).filter(session => session !== sessionId),
+            }));
+            return null;
+        }
+
+        const { mh_user_id: id, mh_user_secret: encryptedSecret, sessions } = data;    
+        if (!sessions.includes(sessionId)) {
+            console.log(`Session ID ${sessionId} not found in user's sessions`);
+            return null;
+        }
+
+        await env.USER_DATA.put(`session:${sessionId}`, JSON.stringify({ ...sessionData, lastAccess: Date.now() }), { expirationTtl: 24*3600*30 });
+
+        const secret = await decryptSecret(encryptedSecret, env.CREDENTIALS_ENCRYPTION_KEY);
+
+        const isAdmin = checkIfAdmin(env, id);
+
+        return { id, secret, idHash, isAdmin };
+    } catch (error) {
+        console.error('Error occurred while getting credentials:', error);
         return null;
     }
-    const idHash = bytesToBase64(decodedToken.slice(0, 32));
-    const sessionId = bytesToBase64(decodedToken.slice(32));
-
-    const data = await env.USER_DATA.get<StoredUserRecord>(`user:${idHash}`, { type: 'json' });
-    if (!data) {
-        console.log(`User data not found for idHash: ${idHash}`);
-        return null;
-    }
-    const sessionData = await env.USER_DATA.get<StoredSessionRecord>(`session:${sessionId}`, { type: 'json' });
-    if (!sessionData) {
-        console.log(`Session data not found for sessionId: ${sessionId}`);
-        await env.USER_DATA.put(`user:${idHash}`, JSON.stringify({
-            ...data,
-            sessions: (data?.sessions ?? []).filter(session => session !== sessionId),
-        }));
-        return null;
-    }
-
-    const { mh_user_id: id, mh_user_secret: encryptedSecret, sessions } = data;    
-    if (!sessions.includes(sessionId)) {
-        console.log(`Session ID ${sessionId} not found in user's sessions`);
-        return null;
-    }
-
-    await env.USER_DATA.put(`session:${sessionId}`, JSON.stringify({ ...sessionData, lastAccess: Date.now() }), { expirationTtl: 24*3600*30 });
-
-    const secret = await decryptSecret(encryptedSecret, env.CREDENTIALS_ENCRYPTION_KEY);
-
-    const isAdmin = checkIfAdmin(env, id);
-
-    return { id, secret, idHash, isAdmin };
 }
 
 function checkIfAdmin(env: WorkerEnv, id: string): boolean {

@@ -6,9 +6,11 @@ import { loadTrolls } from '../sources/trolls.ts';
 export { queryMonsters } from '../sources/monsters.ts';
 export { getIndex, updateIndex } from './indexCore.ts';
 
-export async function load(): Promise<void> {
+export async function load(): Promise<boolean> {
     await loadLocations();
     const guildNames = await loadGuildes();
     await loadTrolls(guildNames);
-    await loadViewData();
+    const ret=await loadViewData();
+    console.log('View data loaded:', ret);
+    return ret ?? false;
 }
