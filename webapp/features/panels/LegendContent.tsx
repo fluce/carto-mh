@@ -1,5 +1,6 @@
 import type { DataGroup, DataGroupVisibility } from '../../shared/types';
-import { formatLegendColor } from './panelUtils';
+import DualRangeSlider from '../../shared/DualRangeSlider';
+import { formatLegendColor, MONSTER_LEVEL_MAX } from './panelUtils';
 
 interface LegendContentProps {
   legend: Record<string, DataGroup> | null;
@@ -10,11 +11,12 @@ interface LegendContentProps {
   detailsError: string | null;
   detailsProgress: { completed: number; total: number };
   hasMonsters: boolean;
-  monsterLevelThreshold: string;
-  onMonsterLevelThresholdChange: (value: string) => void;
+  minimumMonsterLevel: number;
+  maximumMonsterLevel: number;
+  onMonsterLevelRangeChange: (minimumLevel: number, maximumLevel: number) => void;
 }
 
-function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMonsters, monsterLevelThreshold, onMonsterLevelThresholdChange }: LegendContentProps) {
+function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMonsters, minimumMonsterLevel, maximumMonsterLevel, onMonsterLevelRangeChange }: LegendContentProps) {
   if (!legend) {
     return null;
   }
@@ -40,17 +42,19 @@ function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, d
         />
       )}
       {detailsError && <p className="legend-load-error" role="alert">{detailsError}</p>}
-      <label className="legend-level-filter">
-        Niveau strictement supérieur à
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={monsterLevelThreshold}
-          onChange={event => onMonsterLevelThresholdChange(event.target.value)}
-          aria-label="Afficher les monstres de niveau strictement supérieur à"
+      <fieldset className="legend-level-filter">
+        <legend>Niveau des monstres</legend>
+        <DualRangeSlider
+          min={0}
+          max={MONSTER_LEVEL_MAX}
+          lowerValue={minimumMonsterLevel}
+          upperValue={maximumMonsterLevel}
+          lowerLabel="Niveau minimum des monstres"
+          upperLabel="Niveau maximum des monstres"
+          formatUpperValue={value => value === MONSTER_LEVEL_MAX ? `${value}+` : String(value)}
+          onChange={onMonsterLevelRangeChange}
         />
-      </label>
+      </fieldset>
       <ul>
         <li onClick={() => onLegendClick('all')}>Tout</li>
         {Object.entries(legend).map(([legendKey, legendItem]) => (

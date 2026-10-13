@@ -8,6 +8,7 @@ import LegendContent from './LegendContent';
 import MonsterDetailsPanel from './MonsterDetailsPanel';
 import SelectionContent from './SelectionContent';
 import { setInstanceVisibility } from '../map/geometryHelpers';
+import { MONSTER_LEVEL_MAX } from './panelUtils';
 import type { CoordinateIndexedItem, DataGroup, DataGroupVisibility } from '../../shared/types';
 
 function mapLegendVisibility(legend: Record<string, DataGroup> | null): DataGroupVisibility {
@@ -26,7 +27,7 @@ function SidePanel() {
   const [detailsPending, setDetailsPending] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsProgress, setDetailsProgress] = useState({ completed: 0, total: 0 });
-  const [monsterLevelThreshold, setMonsterLevelThreshold] = useState('');
+  const [monsterLevelRange, setMonsterLevelRange] = useState<[number, number]>([0, MONSTER_LEVEL_MAX]);
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
   const { selection, legend, index, inventory, data, loadMonsterDetails, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
@@ -35,15 +36,28 @@ function SidePanel() {
     const monsterGroup = data?.groups.monstres;
     if (!monsterGroup) return;
 
-    const hasThreshold = monsterLevelThreshold.trim() !== '' && Number.isFinite(Number(monsterLevelThreshold));
-    const threshold = Number(monsterLevelThreshold);
+    const [minimumLevel, maximumLevel] = monsterLevelRange;
+    const hasLevelFilter = minimumLevel > 0 || maximumLevel < MONSTER_LEVEL_MAX;
     const itemVisibility = monsterGroup.items.map(monster => {
-      if (!hasThreshold) return true;
+      if (!hasLevelFilter) return true;
       const level = monster.details?.niv;
-      if (!level) return false;
-      const knownLevels = [level.max, level.max2, level.min, level.min2]
-        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-      return knownLevels.length > 0 && Math.max(...knownLevels) > threshold;
+      if (!level) return true;
+      const ranges: Array<[number | undefined, number | undefined]> = [
+        [level.min, level.max],
+        [level.min2, level.max2],
+      ];
+      const knownRanges = ranges.filter(([rangeMin, rangeMax]) =>
+        typeof rangeMin === 'number' || typeof rangeMax === 'number'
+      );
+      if (knownRanges.length === 0) return true;
+
+      return knownRanges.some(([rangeMin, rangeMax]) => {
+        const lowerBound = rangeMin ?? rangeMax;
+        const upperBound = rangeMax ?? rangeMin;
+        return lowerBound !== undefined && upperBound !== undefined &&
+          upperBound >= minimumLevel &&
+          (maximumLevel === MONSTER_LEVEL_MAX || lowerBound <= maximumLevel);
+      });
     });
 
     monsterGroup.itemVisibility = itemVisibility;
@@ -51,7 +65,7 @@ function SidePanel() {
       setInstanceVisibility(monsterGroup.mesh!, index, itemVisibility[index] ?? true);
     });
     requestSceneRender();
-  }, [data, monsterLevelThreshold, requestSceneRender]);
+  }, [data, monsterLevelRange, requestSceneRender]);
 
   useEffect(() => {
     if (selection) setIsOpen(true);
@@ -128,8 +142,11 @@ function SidePanel() {
                 detailsError={detailsError}
                 detailsProgress={detailsProgress}
                 hasMonsters={Boolean(data?.groups.monstres.items.length)}
-                monsterLevelThreshold={monsterLevelThreshold}
-                onMonsterLevelThresholdChange={setMonsterLevelThreshold}
+                minimumMonsterLevel={monsterLevelRange[0]}
+                maximumMonsterLevel={monsterLevelRange[1]}
+                onMonsterLevelRangeChange={(minimumLevel, maximumLevel) => {
+                  setMonsterLevelRange([minimumLevel, maximumLevel]);
+                }}
               />
             </Accordion.Item>
             <Accordion.Item id="selection" title="Sélection">
