@@ -98,6 +98,7 @@ function MyThree() {
                 const intersect = raycaster.intersectObjects(interactiveMeshes, false)
                     .find((hit): hit is THREE.Intersection<SceneMesh> & { instanceId: number } =>
                         hit.object instanceof THREE.InstancedMesh &&
+                        hit.object.visible &&
                         hit.instanceId !== undefined &&
                         Boolean((hit.object as SceneMesh).data[hit.instanceId]?.data)
                     );
@@ -193,6 +194,7 @@ function MyThree() {
             };
             pathUpdater.current = renderPath;
             renderPath(currentPath.current);
+            interactiveMeshes.length = 0;
             interactiveMeshes.push(...scene.children.filter((object): object is SceneMesh =>
                 object instanceof THREE.InstancedMesh && 'data' in object
             ));
