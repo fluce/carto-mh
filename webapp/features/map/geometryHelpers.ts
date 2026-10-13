@@ -44,13 +44,24 @@ export function createInstancedMesh(
 ): SceneMesh {
     const mesh = new THREE.InstancedMesh(geometry, material, d.length) as SceneMesh;
     mesh.data = d;
+    mesh.baseMatrices = [];
     const matrix = new THREE.Matrix4();
     for (var j = 0; j < d.length; j++) {
         if (d[j].z===26 && log)
             console.log("Hello",j,d[j]);
         matrix.makeTranslation(d[j].x, d[j].y, d[j].z);
+        mesh.baseMatrices.push(matrix.clone());
         mesh.setMatrixAt(j, matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
     return mesh;
+}
+
+export function setInstanceVisibility(mesh: SceneMesh, index: number, visible: boolean) {
+    const matrix = new THREE.Matrix4().copy(mesh.baseMatrices[index]);
+    if (!visible) {
+        matrix.scale(new THREE.Vector3(0, 0, 0));
+    }
+    mesh.setMatrixAt(index, matrix);
+    mesh.instanceMatrix.needsUpdate = true;
 }

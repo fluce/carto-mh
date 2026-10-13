@@ -119,12 +119,14 @@ export interface RenderItem extends Point3D {
 
 export interface SceneMesh extends THREE.InstancedMesh {
   data: RenderItem[];
+  baseMatrices: THREE.Matrix4[];
 }
 
 export interface DataGroup {
   items: CoordinateIndexedItem[];
   autocolor: boolean;
   mesh?: SceneMesh;
+  itemVisibility?: boolean[];
   color?: THREE.Color;
 }
 

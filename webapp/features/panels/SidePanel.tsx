@@ -7,6 +7,7 @@ import InventoryContent from './InventoryContent';
 import LegendContent from './LegendContent';
 import MonsterDetailsPanel from './MonsterDetailsPanel';
 import SelectionContent from './SelectionContent';
+import { setInstanceVisibility } from '../map/geometryHelpers';
 import type { CoordinateIndexedItem, DataGroup, DataGroupVisibility } from '../../shared/types';
 
 function mapLegendVisibility(legend: Record<string, DataGroup> | null): DataGroupVisibility {
@@ -22,9 +23,35 @@ function SidePanel() {
   const [isOpen, setIsOpen] = useState(true);
   const [updatePending, setUpdatePending] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [detailsPending, setDetailsPending] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsProgress, setDetailsProgress] = useState({ completed: 0, total: 0 });
+  const [monsterLevelThreshold, setMonsterLevelThreshold] = useState('');
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
-  const { selection, legend, index, inventory, requestSceneRender, admin } = useData();
+  const { selection, legend, index, inventory, data, loadMonsterDetails, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
+
+  useEffect(() => {
+    const monsterGroup = data?.groups.monstres;
+    if (!monsterGroup) return;
+
+    const hasThreshold = monsterLevelThreshold.trim() !== '' && Number.isFinite(Number(monsterLevelThreshold));
+    const threshold = Number(monsterLevelThreshold);
+    const itemVisibility = monsterGroup.items.map(monster => {
+      if (!hasThreshold) return true;
+      const level = monster.details?.niv;
+      if (!level) return false;
+      const knownLevels = [level.max, level.max2, level.min, level.min2]
+        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+      return knownLevels.length > 0 && Math.max(...knownLevels) > threshold;
+    });
+
+    monsterGroup.itemVisibility = itemVisibility;
+    monsterGroup.mesh?.data.forEach((_, index) => {
+      setInstanceVisibility(monsterGroup.mesh!, index, itemVisibility[index] ?? true);
+    });
+    requestSceneRender();
+  }, [data, monsterLevelThreshold, requestSceneRender]);
 
   useEffect(() => {
     if (selection) setIsOpen(true);
@@ -43,6 +70,21 @@ function SidePanel() {
       setUpdateError(error instanceof Error ? error.message : String(error));
     } finally {
       setUpdatePending(false);
+    }
+  };
+
+  const loadVisibleMonsterDetails = async () => {
+    setDetailsPending(true);
+    setDetailsError(null);
+    setDetailsProgress({ completed: 0, total: 0 });
+    try {
+      await loadMonsterDetails(data?.groups.monstres.items ?? [], (completed, total) => {
+        setDetailsProgress({ completed, total });
+      });
+    } catch (error) {
+      setDetailsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDetailsPending(false);
     }
   };
 
@@ -76,8 +118,19 @@ function SidePanel() {
             key={selection ? `${selection.type}:${selection.id}` : 'none'}
             initialOpenId={selection ? 'selection' : 'legend'}
           >
-            <Accordion.Item id="legend" title="Légende" contentClassName="legend">
-              <LegendContent legend={legend} visible={visible} onLegendClick={legendClick} />
+            <Accordion.Item id="legend" title="Vue" contentClassName="legend">
+              <LegendContent
+                legend={legend}
+                visible={visible}
+                onLegendClick={legendClick}
+                onLoadMonsterDetails={loadVisibleMonsterDetails}
+                detailsPending={detailsPending}
+                detailsError={detailsError}
+                detailsProgress={detailsProgress}
+                hasMonsters={Boolean(data?.groups.monstres.items.length)}
+                monsterLevelThreshold={monsterLevelThreshold}
+                onMonsterLevelThresholdChange={setMonsterLevelThreshold}
+              />
             </Accordion.Item>
             <Accordion.Item id="selection" title="Sélection">
               <SelectionContent

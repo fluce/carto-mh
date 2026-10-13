@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo } from './geometryHelpers.ts';
+import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo, setInstanceVisibility } from './geometryHelpers.ts';
 import { MaterialHandler } from './MaterialHandler';
 import type { Line2 } from 'three/addons/lines/Line2.js';
 import type { AppData, GeoIndex, PathStep, Point3D } from '../../shared/types';
@@ -74,6 +74,9 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
     data.groups.trolls.color=material_trolls.color;
     scene.add(data.groups.trolls.mesh);
     data.groups.monstres.mesh=createInstancedMesh(smallBox, material_monstres, (data.groups.monstres.items ?? []).map(x => { return { x: x.x + 0.1, y: x.z - 0.25, z: x.y, data: x }; }))
+    data.groups.monstres.itemVisibility?.forEach((isVisible, index) => {
+        setInstanceVisibility(data.groups.monstres.mesh!, index, isVisible);
+    });
     data.groups.monstres.color=material_monstres.color;
     scene.add(data.groups.monstres.mesh);
     data.groups.tresors.mesh=createInstancedMesh(smallBox, material_tresors, (data.groups.tresors.items ?? []).map(x => { return { x: x.x, y: x.z + 0.1, z: x.y - 0.25, data: x }; }))

@@ -17,6 +17,10 @@ export interface DataContextValue {
   setSelection: Dispatch<SetStateAction<CoordinateIndexedItem | null>>;
   highlighted: CoordinateIndexedItem | null;
   setHighlighted: Dispatch<SetStateAction<CoordinateIndexedItem | null>>;
+  loadMonsterDetails: (
+    monsters: CoordinateIndexedItem[],
+    onProgress?: (completed: number, total: number) => void,
+  ) => Promise<void>;
   registerSceneRenderer: (renderer: () => void) => () => void;
   requestSceneRender: () => void;
   needsLogin: boolean;
@@ -141,7 +145,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [selection, setSelection] = useState<CoordinateIndexedItem | null>(null);
   const [highlighted, setHighlighted] = useState<CoordinateIndexedItem | null>(null);
   const sceneRenderers = useRef(new Set<() => void>());
-  const requestedMonsterIds = useRef(new Set());
+  const requestedMonsterIds = useRef(new Set<string>());
+  const pendingMonsterLoads = useRef(new Map<string, Promise<void>>());
   const [needsLogin, setNeedsLogin] = useState(loginRequired);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginPending, setLoginPending] = useState(false);
@@ -189,56 +194,97 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {};
   }, []);
 
+  const loadMonsterDetails = useCallback(async (
+    monsters: CoordinateIndexedItem[],
+    onProgress?: (completed: number, total: number) => void,
+  ) => {
+    const monstersWithIds = [...new Map(
+      monsters
+        .filter(item => item.id !== undefined)
+        .map(monster => [String(monster.id), monster])
+    ).values()];
+    const total = monstersWithIds.length;
+    const batchSize = 50;
+    onProgress?.(0, total);
+
+    for (let offset = 0; offset < total; offset += batchSize) {
+      const batch = monstersWithIds.slice(offset, offset + batchSize);
+      const missingAttributes = batch.filter(item =>
+        !item.details &&
+        !requestedMonsterIds.current.has(String(item.id)) &&
+        !pendingMonsterLoads.current.has(String(item.id))
+      );
+
+      for (const monster of missingAttributes) {
+        requestedMonsterIds.current.add(String(monster.id));
+      }
+
+      if (missingAttributes.length > 0) {
+        const load = queryMonsters(missingAttributes.map(({ id, name }) => ({ id, name })))
+          .then(attributes => {
+            const attributesById = new Map(
+              (attributes ?? [])
+                .filter(monster => monster.id !== undefined)
+                .map(monster => [String(monster.id), monster])
+            );
+
+            for (const monster of missingAttributes) {
+              const details = attributesById.get(String(monster.id));
+              if (details) {
+                Object.assign(monster, { details });
+              }
+            }
+
+            setData(current => current ? {
+              ...current,
+              groups: {
+                ...current.groups,
+                monstres: {
+                  ...current.groups.monstres,
+                  items: [...current.groups.monstres.items],
+                },
+              },
+            } : current);
+          })
+          .catch(error => {
+            for (const monster of missingAttributes) {
+              requestedMonsterIds.current.delete(String(monster.id));
+            }
+            throw error;
+          });
+
+        for (const monster of missingAttributes) {
+          pendingMonsterLoads.current.set(String(monster.id), load);
+        }
+
+        const clearPending = () => {
+          for (const monster of missingAttributes) {
+            if (pendingMonsterLoads.current.get(String(monster.id)) === load) {
+              pendingMonsterLoads.current.delete(String(monster.id));
+            }
+          }
+        };
+        void load.then(clearPending, clearPending);
+      }
+
+      const pendingLoads = [...new Set(batch
+        .map(monster => pendingMonsterLoads.current.get(String(monster.id)))
+        .filter((load): load is Promise<void> => load !== undefined))];
+      await Promise.all(pendingLoads);
+      onProgress?.(offset + batch.length, total);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selection || !index) {
       return;
     }
 
     const monsters = index.get(selection).filter(item => item.type === 'monstres');
-    const missingAttributes = monsters.filter(item =>
-      item.id !== undefined && !item.details && !requestedMonsterIds.current.has(String(item.id))
-    );
-    if (missingAttributes.length === 0) {
-      return;
-    }
-
-    for (const monster of missingAttributes) {
-      requestedMonsterIds.current.add(String(monster.id));
-    }
-
-    queryMonsters(missingAttributes.map(({ id, name }) => ({ id, name })))
-      .then(attributes => {
-        const attributesById = new Map(
-          (attributes ?? [])
-            .filter(monster => monster.id !== undefined)
-            .map(monster => [String(monster.id), monster])
-        );
-
-        for (const monster of missingAttributes) {
-          const details = attributesById.get(String(monster.id));
-          if (details) {
-            Object.assign(monster, { details });
-          }
-        }
-
-        setData(current => current ? {
-          ...current,
-          groups: {
-            ...current.groups,
-            monstres: {
-              ...current.groups.monstres,
-              items: [...current.groups.monstres.items],
-            },
-          },
-        } : current);
-      })
-      .catch(error => {
-        for (const monster of missingAttributes) {
-          requestedMonsterIds.current.delete(String(monster.id));
-        }
-        console.error('Unable to load monster attributes:', error);
-      });
-  }, [selection, index]);
+    void loadMonsterDetails(monsters).catch(error => {
+      console.error('Unable to load monster attributes:', error);
+    });
+  }, [selection, index, loadMonsterDetails]);
 
   const registerSceneRenderer = useCallback((renderer: () => void) => {
     sceneRenderers.current.add(renderer);
@@ -258,6 +304,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSelection,
     highlighted,
     setHighlighted,
+    loadMonsterDetails,
     registerSceneRenderer,
     requestSceneRender,
     needsLogin,
@@ -265,7 +312,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loginPending,
     submitLogin,
     admin
-  }), [data, inventory, index, dataReady, selection, highlighted, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, admin]);
+  }), [data, inventory, index, dataReady, selection, highlighted, loadMonsterDetails, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, admin]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }
