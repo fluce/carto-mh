@@ -80,6 +80,26 @@ function MyThree() {
         controls.enableDamping = true;
         controls.update();
 
+        const getDataAtPointer = () => {
+            if (!scene) return null;
+            camera.updateMatrixWorld();
+            raycaster.setFromCamera(pointer, camera);
+            const intersect = raycaster.intersectObjects(interactiveMeshes, false)
+                .find((hit): hit is THREE.Intersection<SceneMesh> & { instanceId: number } =>
+                    hit.object instanceof THREE.InstancedMesh &&
+                    hit.object.visible &&
+                    hit.instanceId !== undefined &&
+                    Boolean((hit.object as SceneMesh).data[hit.instanceId]?.data)
+                );
+            return intersect?.object.data[intersect.instanceId].data ?? null;
+        };
+
+        const updatePointer = (event: MouseEvent) => {
+            const bounds = renderer.domElement.getBoundingClientRect();
+            pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+            pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+        };
+
         const requestRender = () => {
             if (!disposed && frameId === null) {
                 frameId = requestAnimationFrame(renderFrame);
@@ -94,15 +114,7 @@ function MyThree() {
             if (!scene) return;
 
             if (pointerInside) {
-                raycaster.setFromCamera(pointer, camera);
-                const intersect = raycaster.intersectObjects(interactiveMeshes, false)
-                    .find((hit): hit is THREE.Intersection<SceneMesh> & { instanceId: number } =>
-                        hit.object instanceof THREE.InstancedMesh &&
-                        hit.object.visible &&
-                        hit.instanceId !== undefined &&
-                        Boolean((hit.object as SceneMesh).data[hit.instanceId]?.data)
-                    );
-                const nextData = intersect?.object.data[intersect.instanceId].data ?? null;
+                const nextData = getDataAtPointer();
 
                 if (nextData !== currentData) {
                     currentData = nextData;
@@ -126,6 +138,8 @@ function MyThree() {
         const onPointerDown = (event: PointerEvent) => {
             pointerDownPosition = { x: event.clientX, y: event.clientY };
             didDrag = false;
+            updatePointer(event);
+            pointerInside = true;
         };
         const onPointerMove = (event: PointerEvent) => {
             if (pointerDownPosition) {
@@ -134,15 +148,12 @@ function MyThree() {
                 didDrag = didDrag || Math.hypot(deltaX, deltaY) > 5;
             }
 
-            const bounds = renderer.domElement.getBoundingClientRect();
-            pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
-            pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+            updatePointer(event);
             pointerInside = true;
             requestRender();
         };
         const onPointerLeave = () => {
             pointerInside = false;
-            pointerDownPosition = null;
             if (currentData) {
                 currentData = null;
                 if (scene) scene.selectionGizmo.visible = false;
@@ -152,8 +163,24 @@ function MyThree() {
                 requestRender();
             }
         };
-        const onClick = () => {
-            if (!didDrag && currentData) setSelection(currentData);
+        const onPointerUp = (event: PointerEvent) => {
+            if (pointerDownPosition) {
+                const deltaX = event.clientX - pointerDownPosition.x;
+                const deltaY = event.clientY - pointerDownPosition.y;
+                didDrag = didDrag || Math.hypot(deltaX, deltaY) > 5;
+                updatePointer(event);
+            }
+            pointerDownPosition = null;
+        };
+        const onClick = (event: MouseEvent) => {
+            if (didDrag) return;
+            updatePointer(event);
+            const selectedData = getDataAtPointer();
+            if (selectedData) setSelection(selectedData);
+        };
+        const onPointerCancel = () => {
+            pointerDownPosition = null;
+            didDrag = false;
         };
         const onWindowResize = () => {
             const width = container.clientWidth;
@@ -170,6 +197,8 @@ function MyThree() {
         renderer.domElement.addEventListener('pointerdown', onPointerDown);
         renderer.domElement.addEventListener('pointermove', onPointerMove);
         renderer.domElement.addEventListener('pointerleave', onPointerLeave);
+        renderer.domElement.addEventListener('pointerup', onPointerUp);
+        renderer.domElement.addEventListener('pointercancel', onPointerCancel);
         renderer.domElement.addEventListener('click', onClick);
         const resizeObserver = new ResizeObserver(onWindowResize);
         resizeObserver.observe(container);
@@ -210,6 +239,8 @@ function MyThree() {
             renderer.domElement.removeEventListener('pointerdown', onPointerDown);
             renderer.domElement.removeEventListener('pointermove', onPointerMove);
             renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
+            renderer.domElement.removeEventListener('pointerup', onPointerUp);
+            renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
             renderer.domElement.removeEventListener('click', onClick);
             controls.removeEventListener('change', onControlsChange);
             controls.dispose();
