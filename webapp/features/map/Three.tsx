@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createScene } from './createScene.ts';
 import { useData } from '../../data/DataContext.ts';
 import { usePathFinding } from '../pathfinding/PathFindingContext.ts';
@@ -14,7 +14,7 @@ function disposeScene(scene: THREE.Scene | null) {
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     scene.traverse(object => {
-        if (object instanceof THREE.Mesh) {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
             geometries.add(object.geometry);
             for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
                 materials.add(material);
@@ -42,7 +42,8 @@ function updateLineMaterialResolution(scene: THREE.Scene | null, renderer: THREE
 
 function MyThree() {
     const refContainer = useRef<HTMLDivElement>(null);
-        const pathUpdater = useRef<((nextPath: PathStep[]) => void) | null>(null);
+    const pathUpdater = useRef<((nextPath: PathStep[]) => void) | null>(null);
+    const [centerOnOrigin, setCenterOnOrigin] = useState<(() => void) | null>(null);
     const { setHighlighted, setSelection, index, data, registerSceneRenderer } = useData();
     const dataRef = useRef(data);
     dataRef.current = data;
@@ -112,6 +113,7 @@ function MyThree() {
 
             controls.update();
             if (!scene) return;
+            scene.orbitCenterGizmo.position.copy(controls.target);
 
             if (pointerInside) {
                 const nextData = getDataAtPointer();
@@ -213,6 +215,15 @@ function MyThree() {
 
             scene = result.scene;
             updatePath = result.updatePath;
+            const origin = new THREE.Vector3(result.origin.x, result.origin.z, result.origin.y);
+            const recenter = () => {
+                const offset = origin.clone().sub(controls.target);
+                controls.target.copy(origin);
+                camera.position.add(offset);
+                controls.update();
+                requestRender();
+            };
+            setCenterOnOrigin(() => recenter);
             unregisterSceneRenderer = registerSceneRenderer(requestRender);
             renderPath = (nextPath: PathStep[]) => {
                 if (!scene || !updatePath) return;
@@ -233,6 +244,7 @@ function MyThree() {
 
     return () => {
             disposed = true;
+            setCenterOnOrigin(null);
             unregisterSceneRenderer();
             if (frameId !== null) cancelAnimationFrame(frameId);
             resizeObserver.disconnect();
@@ -256,8 +268,24 @@ function MyThree() {
         pathUpdater.current?.(path);
     }, [path]);
   return (
-    <div id="my3dcontainer" ref={refContainer}></div>
-
+    <div className="three-view">
+      <div id="my3dcontainer" ref={refContainer}></div>
+      <div className="three-view__controls">
+        <button
+          type="button"
+          onClick={() => centerOnOrigin?.()}
+          disabled={!centerOnOrigin}
+          aria-label="Centrer la vue sur l’origine"
+          title="Centrer la vue sur l’origine"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M12 1v4m0 14v4M1 12h4m14 0h4" />
+          </svg>
+        </button>
+      </div>
+    </div>
   );
 }
 

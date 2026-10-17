@@ -327,6 +327,56 @@ body, html, #root {
     height: 100%;
 }
 
+.three-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.three-view__controls {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+}
+
+.three-view__controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #d5ddd9;
+  border-radius: 50%;
+  background: rgba(251, 252, 250, 0.94);
+  box-shadow: 0 2px 8px rgba(24, 44, 38, 0.2);
+  color: #38584d;
+  cursor: pointer;
+}
+
+.three-view__controls button:hover:not(:disabled) {
+  background: #e9f0ec;
+}
+
+.three-view__controls button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.three-view__controls button:focus-visible {
+  outline: 2px solid #38584d;
+  outline-offset: 2px;
+}
+
+.three-view__controls svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
 #path-finding-panel {
   box-sizing: border-box;
   position: absolute;

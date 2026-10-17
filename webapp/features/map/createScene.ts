@@ -7,6 +7,7 @@ import type { AppData, GeoIndex, PathStep, Point3D } from '../../shared/types';
 
 export interface InteractiveScene extends THREE.Scene {
     selectionGizmo: THREE.Mesh;
+    orbitCenterGizmo: THREE.AxesHelper;
 }
 
 export interface CreatedScene {
@@ -85,26 +86,96 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
 
     scene.add(createXYZGizmo({ x: 0, y: 0, z: 0 }, 100, -1, new LineMaterial({ color: 0x0000ff, linewidth: 5 })));
     scene.add(createXYZGizmo({ x: origin.x, y: origin.z, z: origin.y }, 5, 1, new LineMaterial({ color: 0xff00ff, linewidth: 2 })));
+
+    const orbitCenterGizmo = new THREE.AxesHelper(5);
+    orbitCenterGizmo.name = 'orbit-center-gizmo';
+    orbitCenterGizmo.renderOrder = 10;
+    for (const material of Array.isArray(orbitCenterGizmo.material) ? orbitCenterGizmo.material : [orbitCenterGizmo.material]) {
+        material.depthTest = false;
+        material.depthWrite = false;
+    }
+    scene.orbitCenterGizmo = orbitCenterGizmo;
+    scene.add(orbitCenterGizmo);
     
-    let pathLine: Line2 | undefined;
+    let pathLines: Line2[] = [];
     const pathMaterial = new LineMaterial({
         color: 0xff3030,
         linewidth: 3,
         depthTest: true,
         depthWrite: false,
     });
+    const shortcutPathMaterial = new LineMaterial({
+        color: 0xff3030,
+        linewidth: 3,
+        depthTest: true,
+        depthWrite: false,
+        dashed: true,
+        dashSize: 8,
+        gapSize: 5,
+    });
+    shortcutPathMaterial.onBeforeCompile = shader => {
+        const projectedEndAssignment = 'vec3 ndcEnd = clipEnd.xyz / clipEnd.w;';
+        if (
+            !shader.vertexShader.includes('varying float vLineDistance;') ||
+            !shader.vertexShader.includes(projectedEndAssignment) ||
+            !shader.fragmentShader.includes('mod( vLineDistance + dashOffset, dashSize + gapSize )')
+        ) {
+            throw new Error('Unable to configure screen-space shortcut dashes for the current Three.js line shader.');
+        }
+
+        shader.vertexShader = shader.vertexShader
+            .replace(
+                'varying float vLineDistance;',
+                `varying float vLineDistance;
+				varying vec2 vDashStart;
+				varying vec2 vDashDirection;`,
+            )
+            .replace(projectedEndAssignment, `vec3 ndcEnd = clipEnd.xyz / clipEnd.w;
+				vDashStart = ( ndcStart.xy * 0.5 + 0.5 ) * resolution;
+				vDashDirection = normalize( ( ndcEnd.xy - ndcStart.xy ) * resolution * 0.5 );`,
+            );
+        shader.fragmentShader = shader.fragmentShader
+            .replace(
+                'varying float vLineDistance;',
+                `varying float vLineDistance;
+				varying vec2 vDashStart;
+				varying vec2 vDashDirection;
+				uniform float dashPixelRatio;`,
+            )
+            .replace(
+                'mod( vLineDistance + dashOffset, dashSize + gapSize )',
+                'mod( dot( gl_FragCoord.xy / dashPixelRatio - vDashStart, vDashDirection ) + dashOffset, dashSize + gapSize )',
+            );
+        shader.uniforms.dashPixelRatio = { value: Math.min(window.devicePixelRatio || 1, 1.5) };
+    };
+    shortcutPathMaterial.customProgramCacheKey = () => 'screen-space-dashes';
 
     function updatePath(nextPath: PathStep[]) {
-        if (pathLine) {
+        for (const pathLine of pathLines) {
             scene.remove(pathLine);
             pathLine.geometry.dispose();
         }
+        pathLines = [];
+
         if ((nextPath ?? []).length > 1) {
-            pathLine = createPath(nextPath, pathMaterial);
-            pathLine.renderOrder = 10;
-            scene.add(pathLine);
-        } else {
-            pathLine = undefined;
+            let segmentStart = 1;
+            while (segmentStart < nextPath.length) {
+                const isShortcut = nextPath[segmentStart].shortcut;
+                let segmentEnd = segmentStart + 1;
+                while (segmentEnd < nextPath.length && nextPath[segmentEnd].shortcut === isShortcut) {
+                    segmentEnd += 1;
+                }
+
+                const pathLine = createPath(
+                    nextPath.slice(segmentStart - 1, segmentEnd),
+                    isShortcut ? shortcutPathMaterial : pathMaterial,
+                );
+                if (isShortcut) pathLine.computeLineDistances();
+                pathLine.renderOrder = 10;
+                scene.add(pathLine);
+                pathLines.push(pathLine);
+                segmentStart = segmentEnd;
+            }
         }
     }
 
