@@ -5,8 +5,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createScene } from './createScene.ts';
 import { useData } from '../../data/DataContext.ts';
 import { usePathFinding } from '../pathfinding/PathFindingContext.ts';
+import CenterViewButton from '../../shared/CenterViewButton';
 import type { InteractiveScene } from './createScene.ts';
-import type { CoordinateIndexedItem, PathStep, SceneMesh } from '../../shared/types';
+import type { CoordinateIndexedItem, PathStep, Point3D, SceneMesh } from '../../shared/types';
 
 function disposeScene(scene: THREE.Scene | null) {
     if (!scene) return;
@@ -40,11 +41,36 @@ function updateLineMaterialResolution(scene: THREE.Scene | null, renderer: THREE
     });
 }
 
+function fitCameraToPath(camera: THREE.PerspectiveCamera, controls: OrbitControls, path: PathStep[]) {
+    if (path.length === 0) return;
+
+    const bounds = new THREE.Box3().setFromPoints(
+        path.map(step => new THREE.Vector3(step.x, step.z, step.y)),
+    );
+    const center = bounds.getCenter(new THREE.Vector3());
+    const radius = bounds.getBoundingSphere(new THREE.Sphere()).radius;
+    const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * camera.aspect);
+    const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+    const distance = radius > 0 ? (radius / Math.sin(limitingHalfFov)) * 1.2 : 10;
+    const viewDirection = camera.position.clone().sub(controls.target);
+    if (viewDirection.lengthSq() === 0) {
+        viewDirection.set(1, 1, 1);
+    }
+
+    controls.target.copy(center);
+    camera.position.copy(center).addScaledVector(viewDirection.normalize(), distance);
+    camera.far = Math.max(camera.far, distance + radius * 2);
+    camera.updateProjectionMatrix();
+    controls.update();
+}
+
 function MyThree() {
     const refContainer = useRef<HTMLDivElement>(null);
     const pathUpdater = useRef<((nextPath: PathStep[]) => void) | null>(null);
-    const [centerOnOrigin, setCenterOnOrigin] = useState<(() => void) | null>(null);
-    const { setHighlighted, setSelection, index, data, registerSceneRenderer } = useData();
+    const pathFitter = useRef<((nextPath: PathStep[]) => void) | null>(null);
+    const [origin, setOrigin] = useState<Point3D | null>(null);
+    const { setHighlighted, setSelection, index, data, registerSceneRenderer, registerCenterOnCell } = useData();
     const dataRef = useRef(data);
     dataRef.current = data;
     const hasData = data !== null;
@@ -61,7 +87,9 @@ function MyThree() {
         let scene: InteractiveScene | null = null;
         let updatePath: ((nextPath: PathStep[]) => void) | null = null;
         let renderPath: ((nextPath: PathStep[]) => void) | null = null;
+        let fitPath: ((nextPath: PathStep[]) => void) | null = null;
         let unregisterSceneRenderer: () => void = () => {};
+        let unregisterCenterOnCell: () => void = () => {};
         let currentData: CoordinateIndexedItem | null = null;
         let pointerInside = false;
         let pointerDownPosition: { x: number; y: number } | null = null;
@@ -215,16 +243,25 @@ function MyThree() {
 
             scene = result.scene;
             updatePath = result.updatePath;
-            const origin = new THREE.Vector3(result.origin.x, result.origin.z, result.origin.y);
-            const recenter = () => {
-                const offset = origin.clone().sub(controls.target);
-                controls.target.copy(origin);
+            const centerOnPosition = (position: Point3D) => {
+                const target = new THREE.Vector3(position.x, position.z, position.y);
+                const offset = target.clone().sub(controls.target);
+                controls.target.copy(target);
                 camera.position.add(offset);
                 controls.update();
                 requestRender();
             };
-            setCenterOnOrigin(() => recenter);
-            unregisterSceneRenderer = registerSceneRenderer(requestRender);
+            setOrigin(result.origin);
+            unregisterCenterOnCell = registerCenterOnCell(centerOnPosition);
+            unregisterSceneRenderer = registerSceneRenderer(() => {
+                result.update();
+                requestRender();
+            });
+            fitPath = nextPath => {
+                fitCameraToPath(camera, controls, nextPath);
+                requestRender();
+            };
+            pathFitter.current = fitPath;
             renderPath = (nextPath: PathStep[]) => {
                 if (!scene || !updatePath) return;
                 updatePath(nextPath);
@@ -234,6 +271,7 @@ function MyThree() {
             };
             pathUpdater.current = renderPath;
             renderPath(currentPath.current);
+            fitPath(currentPath.current);
             interactiveMeshes.length = 0;
             interactiveMeshes.push(...scene.children.filter((object): object is SceneMesh =>
                 object instanceof THREE.InstancedMesh && 'data' in object
@@ -244,8 +282,9 @@ function MyThree() {
 
     return () => {
             disposed = true;
-            setCenterOnOrigin(null);
+            setOrigin(null);
             unregisterSceneRenderer();
+            unregisterCenterOnCell();
             if (frameId !== null) cancelAnimationFrame(frameId);
             resizeObserver.disconnect();
             renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -260,30 +299,24 @@ function MyThree() {
             renderer.dispose();
             renderer.domElement.remove();
             if (pathUpdater.current === renderPath) pathUpdater.current = null;
+            if (pathFitter.current === fitPath) pathFitter.current = null;
         };
-    }, [hasData, index, registerSceneRenderer]);
+    }, [hasData, index, registerCenterOnCell, registerSceneRenderer]);
 
     useLayoutEffect(() => {
         currentPath.current = path;
         pathUpdater.current?.(path);
+        if (path.length > 0) pathFitter.current?.(path);
     }, [path]);
   return (
     <div className="three-view">
       <div id="my3dcontainer" ref={refContainer}></div>
       <div className="three-view__controls">
-        <button
-          type="button"
-          onClick={() => centerOnOrigin?.()}
-          disabled={!centerOnOrigin}
-          aria-label="Centrer la vue sur l’origine"
-          title="Centrer la vue sur l’origine"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="7" />
-            <circle cx="12" cy="12" r="2" />
-            <path d="M12 1v4m0 14v4M1 12h4m14 0h4" />
-          </svg>
-        </button>
+        <CenterViewButton
+          position={origin}
+          className="three-view__center-origin"
+          label="Centrer la vue sur l’origine"
+        />
       </div>
     </div>
   );

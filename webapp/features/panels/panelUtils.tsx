@@ -1,7 +1,7 @@
 import { Color } from 'three';
 import type { CoordinateIndexedItem } from '../../shared/types';
 
-export const MONSTER_LEVEL_MAX = 60;
+export { MONSTER_LEVEL_MAX } from '../../shared/constants';
 
 export function formatLegendColor(color: Color | number | undefined) {
   if (color instanceof Color) {

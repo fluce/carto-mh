@@ -520,10 +520,59 @@ body, html, #root {
   font-weight: 700;
 }
 
+#path-finding-panel .path-endpoint-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 18px;
+}
+
+#path-finding-panel .path-endpoint-label > span {
+  color: #5a6c65;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 #path-finding-panel .path-endpoint-control {
   display: flex;
   gap: 6px;
   min-width: 0;
+}
+
+#path-finding-panel .path-endpoints {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+#path-finding-panel .path-swap-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 18px;
+  padding: 2px;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  color: #334c47;
+  cursor: pointer;
+}
+
+#path-finding-panel .path-swap-button:hover {
+  background: #e9f0ec;
+}
+
+#path-finding-panel .path-swap-button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 #path-finding-panel .path-endpoint-input {
@@ -699,6 +748,40 @@ body, html, #root {
   color: #64716b;
   font-size: 0.78em;
   line-height: 1.3;
+}
+
+#path-finding-panel .path-step-coordinate {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+#path-finding-panel .coordinates-center-button {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 3px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: #38584d;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+#path-finding-panel .coordinates-center-button:hover:not(:disabled) {
+  background: #e5eee8;
+}
+
+#path-finding-panel .coordinates-center-button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 #path-finding-panel .path-instructions li::before {

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { usePathFinding } from './PathFindingContext.ts';
 import { useData } from '../../data/DataContext.ts';
+import Coordinates from '../../shared/Coordinates';
 import PathEndpointInput from './PathEndpointInput.tsx';
 import type { GeoIndex } from '../../shared/types';
 import type { PathStep, Point3D, SearchStats, PathTimings } from '../../shared/types';
@@ -12,7 +13,9 @@ interface PathEndpoint {
 
 interface PathInstruction {
   kind: 'start' | 'tgv' | 'shortcut' | 'walk';
-  text: string;
+  beforePoint: string;
+  point: Point3D;
+  afterPoint: string;
   locationName: string;
   locationType: string;
 }
@@ -56,7 +59,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
   const startLocation = getLocationInfo(index, path[0]);
   const instructions: PathInstruction[] = [{
     kind: 'start',
-    text: `Départ depuis ${formatPoint(path[0])}`,
+    beforePoint: 'Départ depuis ',
+    point: path[0],
+    afterPoint: '',
     locationName: startLocation.name,
     locationType: startLocation.type,
   }];
@@ -68,7 +73,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
       const destination = getLocationInfo(index, step);
       instructions.push({
         kind: destination.isTgv ? 'tgv' : 'shortcut',
-        text: `Prendre ${destination.isTgv ? 'le TGV' : 'un raccourci'} jusqu’à ${formatPoint(step)}${formatCost(step.cost)}`,
+        beforePoint: `Prendre ${destination.isTgv ? 'le TGV' : 'un raccourci'} jusqu’à `,
+        point: step,
+        afterPoint: formatCost(step.cost),
         locationName: destination.name,
         locationType: destination.type,
       });
@@ -87,7 +94,9 @@ function getInstructions(path: PathStep[], index: GeoIndex | null): PathInstruct
     const destination = getLocationInfo(index, path[walkEndIndex]);
     instructions.push({
       kind: 'walk',
-      text: `Parcourir ${walkStepCount} ${walkStepCount === 1 ? 'étape' : 'étapes'} jusqu’à ${formatPoint(path[walkEndIndex])}${formatCost(walkCost)}`,
+      beforePoint: `Parcourir ${walkStepCount} ${walkStepCount === 1 ? 'étape' : 'étapes'} jusqu’à `,
+      point: path[walkEndIndex],
+      afterPoint: formatCost(walkCost),
       locationName: destination.name,
       locationType: destination.type,
     });
@@ -150,6 +159,14 @@ function PathFindingPanel() {
     setIsOpen(!isOpen);
   }
 
+  function handleSwapEndpoints() {
+    setFrom(to);
+    setTo(from);
+    setError('');
+    setCalculation(null);
+    setShowCalculationDetails(false);
+  }
+
   function handleNetworkChange(event: ChangeEvent<HTMLSelectElement>) {
     const selectedNetworks = [...event.target.selectedOptions].map(option => option.value);
     setShortcutNetwork(selectedNetworks.includes('all') ? ['all'] : selectedNetworks);
@@ -183,21 +200,36 @@ function PathFindingPanel() {
               ))}
             </select>
           </label>
-          <PathEndpointInput
-            id="path-from"
-            label="Départ"
-            endpoint={from}
-            onChange={setFrom}
-            index={index}
-            onUseOrigin={pathOrigin ? () => setFrom({ value: formatPoint(pathOrigin), point: pathOrigin }) : null}
-          />
-          <PathEndpointInput
-            id="path-to"
-            label="Arrivée"
-            endpoint={to}
-            onChange={setTo}
-            index={index}
-          />
+          <div className="path-endpoints">
+            <PathEndpointInput
+              id="path-from"
+              label="Départ"
+              endpoint={from}
+              onChange={setFrom}
+              index={index}
+              onUseOrigin={pathOrigin ? () => setFrom({ value: formatPoint(pathOrigin), point: pathOrigin }) : null}
+            />
+            <PathEndpointInput
+              id="path-to"
+              label="Arrivée"
+              endpoint={to}
+              onChange={setTo}
+              index={index}
+              labelAction={
+                <button
+                  type="button"
+                  className="path-swap-button"
+                  onClick={handleSwapEndpoints}
+                  aria-label="Inverser le départ et l’arrivée"
+                  title="Inverser le départ et l’arrivée"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 4v16m0 0-4-4m4 4 4-4M16 20V4m0 0-4 4m4-4 4 4" />
+                  </svg>
+                </button>
+              }
+            />
+          </div>
           <button type="submit" disabled={!findPath}>Calculer</button>
           {error && <p role="alert">{error}</p>}
           {path.length > 0 && (
@@ -207,7 +239,16 @@ function PathFindingPanel() {
                   key={`${instruction.kind}-${instructionIndex}`}
                   className={`path-step path-step--${instruction.kind}${instructionIndex === instructions.length - 1 ? ' path-step--destination' : ''}`}
                 >
-                  <span className="path-step-description">{instruction.text}</span>
+                  <span className="path-step-description">
+                    {instruction.beforePoint}
+                    <Coordinates
+                      position={instruction.point}
+                      label={`Centrer la vue sur ${formatPoint(instruction.point)}`}
+                      className="path-step-coordinate"
+                      separator=","
+                    />
+                    {instruction.afterPoint}
+                  </span>
                   {instruction.locationName && (
                     <small className="path-step-location">{instruction.locationName} ({instruction.locationType})</small>
                   )}

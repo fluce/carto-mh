@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ChangeEvent, CSSProperties, Dispatch, KeyboardEvent, SetStateAction } from 'react';
+import type { ChangeEvent, CSSProperties, Dispatch, KeyboardEvent, ReactNode, SetStateAction } from 'react';
 import type { GeoIndex, Point3D, SearchableItem } from '../../shared/types';
 
 interface PathEndpoint {
@@ -26,6 +26,7 @@ interface PathEndpointInputProps {
   onChange: Dispatch<SetStateAction<PathEndpoint>>;
   index: GeoIndex | null;
   onUseOrigin?: (() => void) | null;
+  labelAction?: ReactNode;
 }
 
 function isCoordinateInput(value: string) {
@@ -46,7 +47,7 @@ function formatSuggestion(item: SearchableItem) {
   return `${item.name} (${formatPoint(item)}) [${category}]`;
 }
 
-function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }: PathEndpointInputProps) {
+function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin, labelAction }: PathEndpointInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const isCoordinate = isCoordinateInput(endpoint.value);
   const suggestions = isCoordinate ? [] : (index?.search(endpoint.value, 10) ?? []);
@@ -151,7 +152,10 @@ function PathEndpointInput({ id, label, endpoint, onChange, index, onUseOrigin }
 
   return (
     <label className="path-endpoint">
-      <span>{label}</span>
+      <div className="path-endpoint-label">
+        <span>{label}</span>
+        {labelAction}
+      </div>
       <div className="path-endpoint-control">
         <div className="path-endpoint-input">
           <input

@@ -199,8 +199,49 @@
 }
 
 #side-panel-content .selection-details dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   text-align: right;
+}
+
+#side-panel-content .selection-coordinate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#side-panel-content .coordinates-center-button {
+  display: grid;
+  flex: 0 0 26px;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 3px;
+  border: 1px solid #cbd5d0;
+  background: #fff;
+  color: #334c47;
+  cursor: pointer;
+}
+
+#side-panel-content .coordinates-center-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#side-panel-content .selection-center-button:hover:not(:disabled) {
+  background: #e9f0ec;
+}
+
+#side-panel-content .selection-center-button:disabled {
+  color: #64716b;
+  cursor: not-allowed;
 }
 
 #side-panel-content .selection-content h3 {

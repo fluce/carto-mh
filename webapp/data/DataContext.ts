@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Index } from './index/indexCore.ts';
-import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, Profile, WorkerRequestMap, WorkerResultMap } from '../shared/types';
+import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, Point3D, Profile, WorkerRequestMap, WorkerResultMap } from '../shared/types';
 
 type PendingCall = {
   resolve: (result: unknown) => void;
@@ -18,6 +18,8 @@ export interface DataContextValue {
   setSelection: Dispatch<SetStateAction<CoordinateIndexedItem | null>>;
   highlighted: CoordinateIndexedItem | null;
   setHighlighted: Dispatch<SetStateAction<CoordinateIndexedItem | null>>;
+  centerOnCell: ((position: Point3D) => void) | null;
+  registerCenterOnCell: (center: (position: Point3D) => void) => () => void;
   loadMonsterDetails: (
     monsters: CoordinateIndexedItem[],
     onProgress?: (completed: number, total: number) => void,
@@ -157,6 +159,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState(false);
   const [selection, setSelection] = useState<CoordinateIndexedItem | null>(null);
   const [highlighted, setHighlighted] = useState<CoordinateIndexedItem | null>(null);
+  const [centerOnCell, setCenterOnCell] = useState<((position: Point3D) => void) | null>(null);
   const sceneRenderers = useRef(new Set<() => void>());
   const requestedMonsterIds = useRef(new Set<string>());
   const pendingMonsterLoads = useRef(new Map<string, Promise<void>>());
@@ -312,6 +315,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     sceneRenderers.current.add(renderer);
     return () => sceneRenderers.current.delete(renderer);
   }, []);
+  const registerCenterOnCell = useCallback((center: (position: Point3D) => void) => {
+    setCenterOnCell(() => center);
+    return () => setCenterOnCell((current: ((position: Point3D) => void) | null) => current === center ? null : current);
+  }, []);
   const requestSceneRender = useCallback(() => {
     sceneRenderers.current.forEach(renderer => renderer());
   }, []);
@@ -333,6 +340,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSelection,
     highlighted,
     setHighlighted,
+    centerOnCell,
+    registerCenterOnCell,
     loadMonsterDetails,
     registerSceneRenderer,
     requestSceneRender,
@@ -341,7 +350,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loginPending,
     submitLogin,
     admin
-  }), [data, inventory, index, dataReady, selection, highlighted, loadMonsterDetails, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, hasMissingMonsterDetails, admin]);
+  }), [data, inventory, index, dataReady, selection, highlighted, centerOnCell, registerCenterOnCell, loadMonsterDetails, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, hasMissingMonsterDetails, admin]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }

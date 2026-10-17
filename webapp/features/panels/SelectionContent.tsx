@@ -1,4 +1,5 @@
 import type { Index } from '../../data/index/indexCore.ts';
+import Coordinates from '../../shared/Coordinates';
 import type { CoordinateIndexedItem, DataGroup, MonsterDetailRange } from '../../shared/types';
 import { formatLegendColor, renderObjectLabel } from './panelUtils';
 
@@ -53,7 +54,16 @@ function SelectionContent({ selection, index, legend, onShowMonster }: Selection
       </div>
       <dl className="selection-details">
         <div><dt>ID</dt><dd>{selection.id}</dd></div>
-        <div><dt>Coordonnées</dt><dd>{selection.x}, {selection.y}, {selection.z}</dd></div>
+        <div>
+          <dt>Coordonnées</dt>
+          <dd>
+            <Coordinates
+              position={selection}
+              label="Centrer la vue sur cette case"
+              className="selection-coordinate"
+            />
+          </dd>
+        </div>
       </dl>
       <h3>Objets à ces coordonnées</h3>
       <ul className="coordinate-objects">

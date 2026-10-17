@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo, setInstanceVisibility } from './geometryHelpers.ts';
+import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo } from './geometryHelpers.ts';
 import { MaterialHandler } from './MaterialHandler';
 import type { Line2 } from 'three/addons/lines/Line2.js';
-import type { AppData, GeoIndex, PathStep, Point3D } from '../../shared/types';
+import type { AppData, CoordinateIndexedItem, GeoIndex, PathStep, Point3D, RenderItem, SceneMesh } from '../../shared/types';
+import { MONSTER_LEVEL_MAX } from '../../shared/constants';
+
+const MIN_CREATURE_CUBE_SIDE = 0.1;
+const MAX_CREATURE_CUBE_SIDE = 0.6;
+const TREASURE_CUBE_SIDE = MIN_CREATURE_CUBE_SIDE * 2;
 
 export interface InteractiveScene extends THREE.Scene {
     selectionGizmo: THREE.Mesh;
@@ -15,6 +20,84 @@ export interface CreatedScene {
     origin: Point3D;
     update: () => void;
     updatePath: (nextPath: PathStep[]) => void;
+}
+
+function getCubeSizeFromLevels(levels: number[]): number {
+    const knownLevels = levels.filter(Number.isFinite);
+    if (knownLevels.length === 0) return (MIN_CREATURE_CUBE_SIDE + MAX_CREATURE_CUBE_SIDE) / 2;
+
+    const averageLevel = knownLevels.reduce((sum, value) => sum + value, 0) / knownLevels.length;
+    const normalizedLevel = Math.min(1, Math.max(0, averageLevel / MONSTER_LEVEL_MAX));
+    const maximumVolume = MAX_CREATURE_CUBE_SIDE ** 3;
+    const volume = normalizedLevel * maximumVolume;
+    return Math.min(MAX_CREATURE_CUBE_SIDE, Math.max(MIN_CREATURE_CUBE_SIDE, Math.cbrt(volume)));
+}
+
+function getMonsterCubeSize(item: AppData['groups'][string]['items'][number]): number {
+    const level = item.details?.niv;
+    return getCubeSizeFromLevels([level?.min, level?.max, level?.min2, level?.max2]
+        .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)));
+}
+
+function getTrollCubeSize(item: CoordinateIndexedItem): number {
+    const level = typeof item.level === 'number'
+        ? item.level
+        : typeof item.level === 'string' && item.level.trim() !== ''
+            ? Number(item.level)
+            : Number.NaN;
+    return getCubeSizeFromLevels(Number.isFinite(level) ? [level] : []);
+}
+
+function getCellDistributedRenderItems(
+    trolls: CoordinateIndexedItem[],
+    monsters: CoordinateIndexedItem[],
+    treasures: CoordinateIndexedItem[],
+) {
+    type EntityKind = 'trolls' | 'monstres' | 'tresors';
+    type CellEntity = { kind: EntityKind; index: number; item: CoordinateIndexedItem };
+    const renderItems: Record<EntityKind, RenderItem[]> = {
+        trolls: trolls.map(item => ({ x: item.x - 0.25, y: item.z, z: item.y, data: item })),
+        monstres: monsters.map(item => ({ x: item.x + 0.1, y: item.z - 0.25, z: item.y, data: item })),
+        tresors: treasures.map(item => ({ x: item.x, y: item.z + 0.1, z: item.y - 0.25, data: item })),
+    };
+    const entitiesByCell = new Map<string, CellEntity[]>();
+
+    const addToCell = (kind: EntityKind, items: CoordinateIndexedItem[]) => {
+        items.forEach((item, index) => {
+            const cell = JSON.stringify([item.x, item.y, item.z]);
+            const entities = entitiesByCell.get(cell) ?? [];
+            entities.push({ kind, index, item });
+            entitiesByCell.set(cell, entities);
+        });
+    };
+    addToCell('trolls', trolls);
+    addToCell('monstres', monsters);
+    addToCell('tresors', treasures);
+
+    for (const entities of entitiesByCell.values()) {
+        if (entities.length < 2) continue;
+        const radius = 0.5 * Math.sqrt(Math.min(1, (entities.length - 1) / 5));
+
+        entities.sort((left, right) => {
+            if (left.kind !== right.kind) return left.kind < right.kind ? -1 : 1;
+            if (left.item.id !== right.item.id) return left.item.id < right.item.id ? -1 : 1;
+            return left.index - right.index;
+        });
+
+        entities.forEach((entity, positionIndex) => {
+            const vertical = 1 - (2 * (positionIndex + 0.5)) / entities.length;
+            const ringRadius = Math.sqrt(1 - vertical * vertical);
+            const angle = positionIndex * Math.PI * (3 - Math.sqrt(5));
+            renderItems[entity.kind][entity.index] = {
+                x: entity.item.x + Math.cos(angle) * ringRadius * radius,
+                y: entity.item.z + vertical * radius,
+                z: entity.item.y + Math.sin(angle) * ringRadius * radius,
+                data: entity.item,
+            };
+        });
+    }
+
+    return renderItems;
 }
 
 export async function createScene(data: AppData, index: GeoIndex, path: PathStep[]): Promise<CreatedScene> {
@@ -31,7 +114,11 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
     scene.add(light);
 
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const smallBox = new THREE.BoxGeometry(0.6, 0.6, 0.6);//.translate(0.25, 0.25, 0.25);
+    const smallBox = new THREE.BoxGeometry(
+        TREASURE_CUBE_SIDE,
+        TREASURE_CUBE_SIDE,
+        TREASURE_CUBE_SIDE,
+    );
 
     const material = new THREE.MeshPhongMaterial({
         color: 0x7f00ff00,
@@ -71,16 +158,45 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
         }
     }
 
-    data.groups.trolls.mesh=createInstancedMesh(smallBox, material_trolls, (data.groups.trolls.items ?? []).map(x => { return { x: x.x - 0.25, y: x.z, z: x.y, data: x }; }))
+    const cellDistributedRenderItems = getCellDistributedRenderItems(
+        data.groups.trolls.items ?? [],
+        data.groups.monstres.items ?? [],
+        data.groups.tresors.items ?? [],
+    );
+    data.groups.trolls.mesh=createInstancedMesh(geometry, material_trolls, cellDistributedRenderItems.trolls)
     data.groups.trolls.color=material_trolls.color;
     scene.add(data.groups.trolls.mesh);
-    data.groups.monstres.mesh=createInstancedMesh(smallBox, material_monstres, (data.groups.monstres.items ?? []).map(x => { return { x: x.x + 0.1, y: x.z - 0.25, z: x.y, data: x }; }))
-    data.groups.monstres.itemVisibility?.forEach((isVisible, index) => {
-        setInstanceVisibility(data.groups.monstres.mesh!, index, isVisible);
-    });
-    data.groups.monstres.color=material_monstres.color;
+    data.groups.monstres.mesh = createInstancedMesh(geometry, material_monstres, cellDistributedRenderItems.monstres);
+    data.groups.monstres.color = material_monstres.color;
     scene.add(data.groups.monstres.mesh);
-    data.groups.tresors.mesh=createInstancedMesh(smallBox, material_tresors, (data.groups.tresors.items ?? []).map(x => { return { x: x.x, y: x.z + 0.1, z: x.y - 0.25, data: x }; }))
+
+    function updateMeshSizes(
+        mesh: SceneMesh | undefined,
+        getSize: (item: CoordinateIndexedItem) => number,
+        itemVisibility?: boolean[],
+    ) {
+        if (!mesh) return;
+
+        const position = new THREE.Vector3();
+        for (let instanceIndex = 0; instanceIndex < mesh.data.length; instanceIndex += 1) {
+            const item = mesh.data[instanceIndex];
+            position.set(item.x, item.y, item.z);
+            const size = getSize(item.data);
+            const baseMatrix = new THREE.Matrix4().makeScale(size, size, size).setPosition(position);
+            mesh.baseMatrices[instanceIndex] = baseMatrix.clone();
+            if (itemVisibility?.[instanceIndex] === false) {
+                baseMatrix.scale(new THREE.Vector3(0, 0, 0));
+            }
+            mesh.setMatrixAt(instanceIndex, baseMatrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+    }
+    function updateCreatureSizes() {
+        updateMeshSizes(data.groups.trolls.mesh, getTrollCubeSize, data.groups.trolls.itemVisibility);
+        updateMeshSizes(data.groups.monstres.mesh, getMonsterCubeSize, data.groups.monstres.itemVisibility);
+    }
+    updateCreatureSizes();
+    data.groups.tresors.mesh=createInstancedMesh(smallBox, material_tresors, cellDistributedRenderItems.tresors)
     data.groups.tresors.color=material_tresors.color;
     scene.add(data.groups.tresors.mesh);
 
@@ -194,5 +310,5 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
     selectionGizmo.visible=false;
     scene.add(selectionGizmo);
 
-    return { scene, origin, update: () => { /*cube.rotation.y += 0.01*/ }, updatePath };
+    return { scene, origin, update: updateCreatureSizes, updatePath };
 }
