@@ -28,8 +28,9 @@ function SidePanel() {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsProgress, setDetailsProgress] = useState({ completed: 0, total: 0 });
   const [monsterLevelRange, setMonsterLevelRange] = useState<[number, number]>([0, MONSTER_LEVEL_MAX]);
+  const [hideUnknownMonsterLevels, setHideUnknownMonsterLevels] = useState(false);
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
-  const { selection, legend, index, inventory, data, loadMonsterDetails, requestSceneRender, admin } = useData();
+  const { selection, legend, index, inventory, data, hasMissingMonsterDetails, loadMonsterDetails, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
 
   useEffect(() => {
@@ -39,17 +40,16 @@ function SidePanel() {
     const [minimumLevel, maximumLevel] = monsterLevelRange;
     const hasLevelFilter = minimumLevel > 0 || maximumLevel < MONSTER_LEVEL_MAX;
     const itemVisibility = monsterGroup.items.map(monster => {
-      if (!hasLevelFilter) return true;
       const level = monster.details?.niv;
-      if (!level) return true;
       const ranges: Array<[number | undefined, number | undefined]> = [
-        [level.min, level.max],
-        [level.min2, level.max2],
+        [level?.min, level?.max],
+        [level?.min2, level?.max2],
       ];
       const knownRanges = ranges.filter(([rangeMin, rangeMax]) =>
         typeof rangeMin === 'number' || typeof rangeMax === 'number'
       );
-      if (knownRanges.length === 0) return true;
+      if (knownRanges.length === 0) return !hideUnknownMonsterLevels;
+      if (!hasLevelFilter) return true;
 
       return knownRanges.some(([rangeMin, rangeMax]) => {
         const lowerBound = rangeMin ?? rangeMax;
@@ -65,7 +65,7 @@ function SidePanel() {
       setInstanceVisibility(monsterGroup.mesh!, index, itemVisibility[index] ?? true);
     });
     requestSceneRender();
-  }, [data, monsterLevelRange, requestSceneRender]);
+  }, [data, hideUnknownMonsterLevels, monsterLevelRange, requestSceneRender]);
 
   useEffect(() => {
     if (selection) setIsOpen(true);
@@ -141,9 +141,11 @@ function SidePanel() {
                 detailsPending={detailsPending}
                 detailsError={detailsError}
                 detailsProgress={detailsProgress}
-                hasMonsters={Boolean(data?.groups.monstres.items.length)}
+                hasMissingMonsterDetails={hasMissingMonsterDetails}
                 minimumMonsterLevel={monsterLevelRange[0]}
                 maximumMonsterLevel={monsterLevelRange[1]}
+                hideUnknownMonsterLevels={hideUnknownMonsterLevels}
+                onHideUnknownMonsterLevelsChange={setHideUnknownMonsterLevels}
                 onMonsterLevelRangeChange={(minimumLevel, maximumLevel) => {
                   setMonsterLevelRange([minimumLevel, maximumLevel]);
                 }}

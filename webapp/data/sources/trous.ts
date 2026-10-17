@@ -1,7 +1,7 @@
 import type { CompressedHole, Point3D, SourceItem } from '../../shared/types';
 
 interface HolePoint extends Point3D {
-    id: string | number;
+    id: string;
 }
 
 export function compressTrous(trous: HolePoint[]): CompressedHole[] {

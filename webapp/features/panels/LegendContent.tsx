@@ -10,29 +10,33 @@ interface LegendContentProps {
   detailsPending: boolean;
   detailsError: string | null;
   detailsProgress: { completed: number; total: number };
-  hasMonsters: boolean;
+  hasMissingMonsterDetails: boolean;
   minimumMonsterLevel: number;
   maximumMonsterLevel: number;
+  hideUnknownMonsterLevels: boolean;
+  onHideUnknownMonsterLevelsChange: (hide: boolean) => void;
   onMonsterLevelRangeChange: (minimumLevel: number, maximumLevel: number) => void;
 }
 
-function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMonsters, minimumMonsterLevel, maximumMonsterLevel, onMonsterLevelRangeChange }: LegendContentProps) {
+function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMissingMonsterDetails, minimumMonsterLevel, maximumMonsterLevel, hideUnknownMonsterLevels, onHideUnknownMonsterLevelsChange, onMonsterLevelRangeChange }: LegendContentProps) {
   if (!legend) {
     return null;
   }
 
   return (
     <>
-      <button
-        type="button"
-        className="legend-load-details"
-        onClick={onLoadMonsterDetails}
-        disabled={!hasMonsters || detailsPending}
-      >
-        {detailsPending
-          ? `Chargement ${detailsProgress.completed}/${detailsProgress.total}`
-          : 'Charger les détails'}
-      </button>
+      {hasMissingMonsterDetails && (
+        <button
+          type="button"
+          className="legend-load-details"
+          onClick={onLoadMonsterDetails}
+          disabled={detailsPending}
+        >
+          {detailsPending
+            ? `Chargement ${detailsProgress.completed}/${detailsProgress.total}`
+            : 'Charger les détails manquants'}
+        </button>
+      )}
       {detailsPending && (
         <progress
           className="legend-load-progress"
@@ -54,6 +58,14 @@ function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, d
           formatUpperValue={value => value === MONSTER_LEVEL_MAX ? `${value}+` : String(value)}
           onChange={onMonsterLevelRangeChange}
         />
+        <label className="legend-hide-unknown-levels">
+          <input
+            type="checkbox"
+            checked={hideUnknownMonsterLevels}
+            onChange={event => onHideUnknownMonsterLevelsChange(event.target.checked)}
+          />
+          Masquer les créatures dont le niveau est inconnu
+        </label>
       </fieldset>
       <ul>
         <li onClick={() => onLegendClick('all')}>Tout</li>

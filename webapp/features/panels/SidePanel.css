@@ -393,6 +393,19 @@
   padding: 0;
 }
 
+#side-panel-content .legend-hide-unknown-levels {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+#side-panel-content .legend-hide-unknown-levels input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+
 #side-panel-content .legend ul li {
   display: flex;
   align-items: center;

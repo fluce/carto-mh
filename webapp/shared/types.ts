@@ -22,7 +22,7 @@ export interface MonsterDetails {
 }
 
 export interface MonsterRecord extends MonsterDetails {
-  id: string | number;
+  id: string;
   lastRefresh?: string;
 }
 
@@ -43,12 +43,12 @@ export interface CompressedHole {
   y: number;
   z1: number;
   z2: number;
-  id1: string | number;
-  id2: string | number;
+  id1: string;
+  id2: string;
 }
 
 export interface RawLocation extends Point3D {
-  id: string | number;
+  id: string;
   name: string;
   type: string;
   lastUpdate?: string;
@@ -57,7 +57,7 @@ export interface RawLocation extends Point3D {
 }
 
 export interface TgvLocation {
-  ID: string | number;
+  ID: string;
   Nom: string;
   X: number;
   Y: number;

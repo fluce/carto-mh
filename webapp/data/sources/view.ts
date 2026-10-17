@@ -1,6 +1,7 @@
 import { getToken } from '../dataWorker.ts';
 import { updateIndex } from '../index/index.ts';
 import type { SourceItem } from '../../shared/types';
+import { enrichMonstersFromCache } from './monsters.ts';
 
 async function load(): Promise<string[] | false> {
     const res=await fetch('/api/view', { method: 'GET', headers: {
@@ -38,6 +39,9 @@ export async function loadViewData(): Promise<boolean> {
                     section.push({ id: Number.parseInt(d[0]).toString(), x: Number.parseInt(d[1]), y: Number.parseInt(d[2]), z: Number.parseInt(d[3]), type: sectionName });
         }
     }
+
+    await enrichMonstersFromCache(parsedData.monstres ?? []);
+
     await updateIndex('view:origine', parsedData.origine ?? []);
     await updateIndex('view:trolls', parsedData.trolls ?? []);
     await updateIndex('view:monstres', parsedData.monstres ?? []);

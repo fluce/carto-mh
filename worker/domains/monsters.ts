@@ -11,7 +11,7 @@ export async function queryMz(items: MonsterLookupItem[]): Promise<unknown> {
 
     if (res.ok) {
         const data: unknown = await res.json();
-        console.log("results",data);
+        console.log("data", data);
         return data;
     }
     console.error("Error getting MZ info",res.status);

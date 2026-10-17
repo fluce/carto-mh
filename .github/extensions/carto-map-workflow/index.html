@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Carto-MH map workflow</title>
+    <link rel="stylesheet" href="/workflow.css">
+    <script type="module" src="/workflow.js"></script>
+  </head>
+  <body>
+    <main class="canvas">
+      <header class="hero">
+        <p class="eyebrow">CARTO-MH / SYSTEM FLOW</p>
+        <h1>How the map comes together</h1>
+        <p id="workflow-description" class="intro">Loading the repository workflow…</p>
+        <div class="hero-footer">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>Implementation map</span>
+          <span id="stage-count" class="stage-count"></span>
+        </div>
+      </header>
+
+      <section class="pipeline" aria-labelledby="pipeline-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">THE PIPELINE</p>
+            <h2 id="pipeline-title">Data to discovery</h2>
+          </div>
+          <div class="filters" role="group" aria-label="Filter workflow stages">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="data" aria-pressed="false">Data</button>
+            <button type="button" data-filter="visualization" aria-pressed="false">3D</button>
+            <button type="button" data-filter="interaction" aria-pressed="false">Explore</button>
+          </div>
+        </div>
+        <p id="status" class="status" role="status" aria-live="polite">Loading workflow…</p>
+        <ol id="stages" class="stages"></ol>
+      </section>
+
+      <section class="supporting" aria-labelledby="supporting-title">
+        <p class="eyebrow">ALSO IN THE FLOW</p>
+        <h2 id="supporting-title">Supporting data paths</h2>
+        <div id="supporting-flows" class="supporting-grid"></div>
+      </section>
+
+      <footer>Based on the current repository implementation · Expand a stage for files and outputs</footer>
+    </main>
+  </body>
+</html>
