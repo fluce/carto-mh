@@ -1,5 +1,6 @@
 import { getCredentials } from '../auth/sessions.ts';
 import { UPSTREAM_URL } from '../shared/config.ts';
+import { getCacheHeaders, notModifiedResponse } from '../shared/utils.ts';
 import type { CachedView, ResponseHeaders, WorkerEnv } from '../shared/types.ts';
 
 export async function fetchView(request: Request, env: WorkerEnv, respHeaders: ResponseHeaders): Promise<Response> {
@@ -20,9 +21,13 @@ export async function fetchView(request: Request, env: WorkerEnv, respHeaders: R
     if (cachedData?.data && !force) {
         console.log('[VIEW] Cache hit for user:', id);
         if (cachedData.updateDate && cachedData.updateDate>(Date.now()-12*60*60*1000)) {
+            const notModified = notModifiedResponse(request, cachedData.updateDate, respHeaders);
+            if (notModified) {
+                return notModified;
+            }
             return new Response(cachedData.data, { status: 200, 
                 headers: {
-                    ...respHeaders,
+                    ...getCacheHeaders(respHeaders, cachedData.updateDate),
                     'Content-Type': 'text/plain; charset=utf-8',
                 }
             });
@@ -52,12 +57,13 @@ export async function fetchView(request: Request, env: WorkerEnv, respHeaders: R
             return new Response('Upstream returned an error', { status: 502, headers: respHeaders });
         }
 
-        await env.USER_DATA.put(`view:${id}`, JSON.stringify({ data: decodedData, updateDate: Date.now() }), { expirationTtl: 12*60*60 });
+        const updateDate = Date.now();
+        await env.USER_DATA.put(`view:${id}`, JSON.stringify({ data: decodedData, updateDate }), { expirationTtl: 12*60*60 });
         return new Response(decodedData, {
             status: upstreamResponse.status,
             headers: {
                 ...Object.fromEntries(upstreamResponse.headers),
-                ...respHeaders,
+                ...getCacheHeaders(respHeaders, updateDate),
                 'Content-Type': 'text/plain; charset=utf-8',
             },
         });
@@ -65,4 +71,3 @@ export async function fetchView(request: Request, env: WorkerEnv, respHeaders: R
         return new Response('Upstream request failed', { status: 502, headers: respHeaders });
     }
 }
-

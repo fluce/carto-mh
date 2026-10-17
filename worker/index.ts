@@ -83,7 +83,8 @@ function isAllowedOrigin(origin: string | null, allowedOrigins: string[]): boole
 function corsHeaders(origin: string | null, allowedOrigins: string[]): ResponseHeaders {
     const headers: ResponseHeaders = {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, If-Modified-Since',
+        'Access-Control-Expose-Headers': 'Last-Modified',
         'Vary': 'Origin',
     };
 

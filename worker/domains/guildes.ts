@@ -1,6 +1,6 @@
 import { getCredentials } from '../auth/sessions.ts';
 import { GUILDES_URL } from '../shared/config.ts';
-import { jsonResponse } from '../shared/utils.ts';
+import { getCacheHeaders, getOrInitializeTimestamp, jsonResponse, notModifiedResponse } from '../shared/utils.ts';
 import type { ResponseHeaders, WorkerEnv } from '../shared/types.ts';
 
 export async function loadGuildes(env: WorkerEnv): Promise<unknown[]> {
@@ -15,6 +15,7 @@ export async function loadGuildes(env: WorkerEnv): Promise<unknown[]> {
     }
 
     await env.GLOBAL_DATA.put('guildes', JSON.stringify(guildes));
+    await env.GLOBAL_DATA.put('guildes:updatedAt', String(Date.now()));
     return guildes;
 }
 
@@ -32,5 +33,11 @@ export async function fetchGuildes(request: Request, env: WorkerEnv, respHeaders
         }
     }
 
-    return jsonResponse(guildes, 200, respHeaders);
+    const updatedAt = await getOrInitializeTimestamp(env.GLOBAL_DATA, 'guildes:updatedAt');
+    const notModified = notModifiedResponse(request, updatedAt, respHeaders);
+    if (notModified) {
+        return notModified;
+    }
+
+    return jsonResponse(guildes, 200, getCacheHeaders(respHeaders, updatedAt));
 }

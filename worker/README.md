@@ -24,6 +24,9 @@ To create a user token, send `POST /api/token` with a JSON body containing `mh_u
 The Worker validates the credentials against `SP_Profil2.php`, then stores them in the `USER_DATA` KV namespace
 under `token:<token>` and returns the generated 128-bit token.
 
+KV-backed data endpoints return `Last-Modified` and `Cache-Control: private, no-cache, must-revalidate`.
+Browsers can revalidate cached responses with `If-Modified-Since`; unchanged data is returned as `304 Not Modified`.
+
 `mh_user_secret` is encrypted with AES-256-GCM before it is stored. `CREDENTIALS_ENCRYPTION_KEY`
 must be a base64-encoded random 32-byte key and must remain stable to allow future decryption.
 

@@ -1,6 +1,6 @@
 
 import { getCredentials } from '../auth/sessions.ts';
-import { fetchAndDecode, utf8decoder } from '../shared/utils.ts';
+import { fetchAndDecode, getCacheHeaders, getOrInitializeTimestamp, notModifiedResponse, utf8decoder } from '../shared/utils.ts';
 import { TROLLS_URL } from '../shared/config.ts';
 import type { ResponseHeaders, WorkerEnv } from '../shared/types.ts';
 
@@ -9,6 +9,7 @@ export async function loadTrolls(env: WorkerEnv): Promise<string> {
     const data=await fetchAndDecode(TROLLS_URL, utf8decoder);
 
     await env.GLOBAL_DATA.put('trolls', data);
+    await env.GLOBAL_DATA.put('trolls:updatedAt', String(Date.now()));
 
     return data;
 }
@@ -28,8 +29,13 @@ export async function fetchTrolls(request: Request, env: WorkerEnv, respHeaders:
             return new Response('Failed to load trolls data', { status: 500, headers: respHeaders });
         }
     }
+    const updatedAt = await getOrInitializeTimestamp(env.GLOBAL_DATA, 'trolls:updatedAt');
+    const notModified = notModifiedResponse(request, updatedAt, respHeaders);
+    if (notModified) {
+        return notModified;
+    }
     return new Response(data, { headers: {
-        ...respHeaders,
+        ...getCacheHeaders(respHeaders, updatedAt),
         'Content-Type': 'text/plain; charset=utf-8',
     }, status: 200 });
 }

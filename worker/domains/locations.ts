@@ -1,5 +1,5 @@
 import { LOCATIONS_URL, TGV_URL } from '../shared/config.ts';
-import { fetchAndDecode, decoder, utf8decoder, jsonResponse } from '../shared/utils.ts';
+import { fetchAndDecode, decoder, getCacheHeaders, getOrInitializeTimestamp, jsonResponse, notModifiedResponse, utf8decoder } from '../shared/utils.ts';
 import { getCredentials } from '../auth/sessions.ts';
 import type { ResponseHeaders, WorkerEnv } from '../shared/types.ts';
 
@@ -39,8 +39,14 @@ export async function fetchLocations(request: Request, env: WorkerEnv, respHeade
     if (data === null) {
         return new Response('No locations found', { status: 404, headers: respHeaders });
     }
-    
-    return jsonResponse( data, 200, respHeaders);
+
+    const updatedAt = await getOrInitializeTimestamp(env.GLOBAL_DATA, 'locations:updatedAt');
+    const notModified = notModifiedResponse(request, updatedAt, respHeaders);
+    if (notModified) {
+        return notModified;
+    }
+
+    return jsonResponse(data, 200, getCacheHeaders(respHeaders, updatedAt));
 }
 
 export async function updateLocations(request: Request, env: WorkerEnv, respHeaders: ResponseHeaders): Promise<Response> {
@@ -52,8 +58,6 @@ export async function updateLocations(request: Request, env: WorkerEnv, respHead
 
     const body: unknown = await request.json();
     await env.GLOBAL_DATA.put('locations', JSON.stringify(body));
+    await env.GLOBAL_DATA.put('locations:updatedAt', String(Date.now()));
     return new Response('Locations updated', { status: 200, headers: respHeaders });
 }
-
-
-

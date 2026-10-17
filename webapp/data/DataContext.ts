@@ -103,6 +103,8 @@ function setupWorker() {
 
 const { workerForLogin, ready: workerPromise } = setupWorker();
 const calls = new Map<string, PendingCall>();
+let pendingDataLoad: Promise<WorkerResultMap['load']> | null = null;
+let pendingInventoryLoad: Promise<WorkerResultMap['inventory']> | null = null;
 
 export async function callWorker<Action extends keyof WorkerRequestMap>(
   type: Action,
@@ -126,7 +128,12 @@ export async function getProfile(): Promise<Profile> {
 }
 
 async function loadData() {
-  return callWorker('load', {});
+  if (!pendingDataLoad) {
+    pendingDataLoad = callWorker('load', {}).finally(() => {
+      pendingDataLoad = null;
+    });
+  }
+  return pendingDataLoad;
 }
 
 async function queryMonsters(ids: Array<Pick<IndexedItem, 'id' | 'name'>>) {
@@ -134,7 +141,12 @@ async function queryMonsters(ids: Array<Pick<IndexedItem, 'id' | 'name'>>) {
 }
 
 async function loadInventory() {
-  return callWorker('inventory', {});
+  if (!pendingInventoryLoad) {
+    pendingInventoryLoad = callWorker('inventory', {}).finally(() => {
+      pendingInventoryLoad = null;
+    });
+  }
+  return pendingInventoryLoad;
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {

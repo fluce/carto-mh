@@ -1,11 +1,11 @@
 import { getCredentials } from '../auth/sessions.ts';
 import { INVENTORY_URL } from '../shared/config.ts';
-import { jsonResponse } from '../shared/utils.ts';
+import { getCacheHeaders, jsonResponse, notModifiedResponse } from '../shared/utils.ts';
 import type { CachedInventory, Credentials, InventoryItem, ResponseHeaders, WorkerEnv } from '../shared/types.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NO_DESCRIPTION = 'Aucune description disponible';
-const pendingRefreshes = new Map<string, Promise<InventoryItem[]>>();
+const pendingRefreshes = new Map<string, Promise<CachedInventory>>();
 
 function normalizeDescription(description: string | null): string | null {
     return description === NO_DESCRIPTION ? null : description;
@@ -27,7 +27,11 @@ export async function fetchInventory(request: Request, env: WorkerEnv, respHeade
     const cacheKey = `inventory:${credentials.idHash}`;
     const cached = await env.USER_DATA.get<CachedInventory>(cacheKey, { type: 'json' });
     if (cached && isFresh(cached)) {
-        return jsonResponse(normalizeInventoryItems(cached.items), 200, respHeaders);
+        const notModified = notModifiedResponse(request, cached.loadedAt, respHeaders);
+        if (notModified) {
+            return notModified;
+        }
+        return jsonResponse(normalizeInventoryItems(cached.items), 200, getCacheHeaders(respHeaders, cached.loadedAt));
     }
 
     let refresh = pendingRefreshes.get(credentials.idHash);
@@ -37,11 +41,26 @@ export async function fetchInventory(request: Request, env: WorkerEnv, respHeade
     }
 
     try {
-        return jsonResponse(await refresh, 200, respHeaders);
+        const refreshed = await refresh;
+        const notModified = notModifiedResponse(request, refreshed.loadedAt, respHeaders);
+        if (notModified) {
+            return notModified;
+        }
+        return jsonResponse(normalizeInventoryItems(refreshed.items), 200, getCacheHeaders(respHeaders, refreshed.loadedAt));
     } catch (error) {
         console.error('Unable to refresh inventory:', error);
         if (cached && Array.isArray(cached.items)) {
-            return jsonResponse(normalizeInventoryItems(cached.items), 200, { ...respHeaders, 'X-Inventory-Stale': 'true' });
+            const notModified = notModifiedResponse(request, cached.loadedAt, {
+                ...respHeaders,
+                'X-Inventory-Stale': 'true',
+            });
+            if (notModified) {
+                return notModified;
+            }
+            return jsonResponse(normalizeInventoryItems(cached.items), 200, {
+                ...getCacheHeaders(respHeaders, cached.loadedAt),
+                'X-Inventory-Stale': 'true',
+            });
         }
         return new Response('Unable to load inventory', { status: 502, headers: respHeaders });
     } finally {
@@ -60,7 +79,7 @@ function isFresh(cached: CachedInventory | null): boolean {
     );
 }
 
-async function refreshInventory(credentials: Credentials, env: WorkerEnv, cacheKey: string): Promise<InventoryItem[]> {
+async function refreshInventory(credentials: Credentials, env: WorkerEnv, cacheKey: string): Promise<CachedInventory> {
     const url = new URL(INVENTORY_URL);
     url.search = new URLSearchParams({ Numero: credentials.id, Motdepasse: credentials.secret, Split: '1', withSolidite: '1' }).toString();
     const response = await fetch(url);
@@ -72,7 +91,7 @@ async function refreshInventory(credentials: Credentials, env: WorkerEnv, cacheK
     const items = parseInventory(data);
     const cached: CachedInventory = { items, loadedAt: Date.now() };
     await env.USER_DATA.put(cacheKey, JSON.stringify(cached));
-    return items;
+    return cached;
 }
 
 function parseInventory(data: string): InventoryItem[] {
