@@ -2,6 +2,7 @@ import { db } from './persistence/db.ts';
 import { update } from './sources/update.ts';
 import { loadInventory } from './sources/inventory.ts';
 import * as index from './index/index.ts';
+import { loadViewData } from './sources/view.ts';
 import type { DataWorkerRequest, DataWorkerResponse, MonsterRecord, UserData, UserDataExtensionValue } from '../shared/types';
 
 console.log('Worker script loaded');
@@ -27,6 +28,13 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
                 } else {
                     self.postMessage({ type: 'need:login' });
                 }
+                break;
+            case 'refreshView':
+                if (!await loadViewData(true)) {
+                    self.postMessage({ type: 'need:login' });
+                    throw new Error('Unable to refresh view data: authentication required');
+                }
+                self.postMessage({ type: 'result:refreshView', message_id: event.data.message_id, result: index.getIndex() } satisfies DataWorkerResponse);
                 break;
             case 'inventory':
                 self.postMessage({ type: 'result:inventory', message_id: event.data.message_id, result: await loadInventory() } satisfies DataWorkerResponse);

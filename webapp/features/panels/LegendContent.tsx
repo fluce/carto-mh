@@ -6,6 +6,10 @@ interface LegendContentProps {
   legend: Record<string, DataGroup> | null;
   visible: DataGroupVisibility;
   onLegendClick: (item: 'all' | DataGroup) => void;
+  onRefreshView: () => void;
+  viewRefreshPending: boolean;
+  viewRefreshError: string | null;
+  dataReady: boolean;
   onLoadMonsterDetails: () => void;
   detailsPending: boolean;
   detailsError: string | null;
@@ -20,13 +24,24 @@ interface LegendContentProps {
   onNameFilterChange: (name: string) => void;
 }
 
-function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMissingMonsterDetails, minimumMonsterLevel, maximumMonsterLevel, hideUnknownMonsterLevels, onHideUnknownMonsterLevelsChange, onMonsterLevelRangeChange, nameFilter, onNameFilterChange }: LegendContentProps) {
-  if (!legend) {
-    return null;
-  }
-
+function LegendContent({ legend, visible, onLegendClick, onRefreshView, viewRefreshPending, viewRefreshError, dataReady, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMissingMonsterDetails, minimumMonsterLevel, maximumMonsterLevel, hideUnknownMonsterLevels, onHideUnknownMonsterLevelsChange, onMonsterLevelRangeChange, nameFilter, onNameFilterChange }: LegendContentProps) {
   return (
     <>
+      <button
+        type="button"
+        className="legend-refresh-view"
+        onClick={onRefreshView}
+        disabled={viewRefreshPending || !dataReady}
+      >
+        {viewRefreshPending
+          ? 'Actualisation…'
+          : dataReady
+            ? 'Recharger la vue'
+            : 'Chargement…'}
+      </button>
+      {viewRefreshError && <p className="legend-load-error" role="alert">{viewRefreshError}</p>}
+      {legend && (
+        <>
       {hasMissingMonsterDetails && (
         <button
           type="button"
@@ -90,6 +105,8 @@ function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, d
           </li>
         ))}
       </ul>
+        </>
+      )}
     </>
   );
 }

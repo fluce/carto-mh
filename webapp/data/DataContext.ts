@@ -24,6 +24,7 @@ export interface DataContextValue {
     monsters: CoordinateIndexedItem[],
     onProgress?: (completed: number, total: number) => void,
   ) => Promise<void>;
+  refreshViewData: () => Promise<void>;
   registerSceneRenderer: (renderer: () => void) => () => void;
   requestSceneRender: () => void;
   needsLogin: boolean;
@@ -70,6 +71,7 @@ function setupWorker() {
             break;
           case 'result:login':
           case 'result:load':
+          case 'result:refreshView':
           case 'result:update':
           case 'result:monsters':
           case 'result:inventory': {
@@ -96,6 +98,7 @@ function setupWorker() {
           }
           case 'error:login':
           case 'error:load':
+          case 'error:refreshView':
           case 'error:update':
           case 'error:monsters':
           case 'error:inventory':
@@ -221,6 +224,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLoginPending(false);
     }
   }
+
+  const refreshViewData = useCallback(async () => {
+    const refreshedIndex = await callWorker('refreshView', {});
+    const indexInstance = new Index(refreshedIndex);
+    setIndex(indexInstance);
+    setData(buildDataFromIndex(indexInstance));
+  }, []);
 
   useEffect(() => {
     loadData()
@@ -376,6 +386,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     centerOnCell,
     registerCenterOnCell,
     loadMonsterDetails,
+    refreshViewData,
     registerSceneRenderer,
     requestSceneRender,
     needsLogin,
@@ -385,7 +396,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     readUserData,
     writeUserData,
     admin
-  }), [data, inventory, index, dataReady, selection, highlighted, centerOnCell, registerCenterOnCell, loadMonsterDetails, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, hasMissingMonsterDetails, admin]);
+  }), [data, inventory, index, dataReady, selection, highlighted, centerOnCell, registerCenterOnCell, loadMonsterDetails, refreshViewData, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, hasMissingMonsterDetails, admin]);
 
   return createElement(DataContext.Provider, { value: contextValue }, children);
 }

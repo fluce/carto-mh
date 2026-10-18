@@ -184,6 +184,7 @@ export interface PathNetworkOption {
 export interface WorkerRequestMap {
   login: { id: string; secret: string };
   load: Record<string, never>;
+  refreshView: Record<string, never>;
   inventory: Record<string, never>;
   update: Record<string, never>;
   monsters: { ids: Array<Pick<IndexedItem, 'id' | 'name'>> };
@@ -214,6 +215,7 @@ export interface Profile {
 export interface WorkerResultMap {
   login: { success: true; profile: Profile };
   load: IndexSnapshot;
+  refreshView: IndexSnapshot;
   inventory: InventoryItem[];
   update: unknown;
   monsters: Array<MonsterDetails & { id: string | number }>;
@@ -230,9 +232,10 @@ export type DataWorkerResponse =
   | { type: 'need:login' }
   | { type: 'result:login'; message_id: string; result: WorkerResultMap['login'] }
   | { type: 'result:load'; message_id: string; result: WorkerResultMap['load'] }
+  | { type: 'result:refreshView'; message_id: string; result: WorkerResultMap['refreshView'] }
   | { type: 'result:inventory'; message_id: string; result: WorkerResultMap['inventory'] }
   | { type: 'result:update'; message_id: string; result: WorkerResultMap['update'] }
   | { type: 'result:monsters'; message_id: string; result: WorkerResultMap['monsters'] }
   | { type: 'result:readUserData'; message_id: string; result: WorkerResultMap['readUserData'] }
   | { type: 'result:writeUserData'; message_id: string; result: WorkerResultMap['writeUserData'] }
-  | { type: 'error:login' | 'error:load' | 'error:inventory' | 'error:update' | 'error:monsters' | 'error:readUserData' | 'error:writeUserData' | 'error:unknown'; message_id?: string; error: string };
+  | { type: 'error:login' | 'error:load' | 'error:refreshView' | 'error:inventory' | 'error:update' | 'error:monsters' | 'error:readUserData' | 'error:writeUserData' | 'error:unknown'; message_id?: string; error: string };

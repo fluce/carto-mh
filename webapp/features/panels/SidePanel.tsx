@@ -26,12 +26,14 @@ function SidePanel() {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [detailsPending, setDetailsPending] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [viewRefreshPending, setViewRefreshPending] = useState(false);
+  const [viewRefreshError, setViewRefreshError] = useState<string | null>(null);
   const [detailsProgress, setDetailsProgress] = useState({ completed: 0, total: 0 });
   const [monsterLevelRange, setMonsterLevelRange] = useState<[number, number]>([0, MONSTER_LEVEL_MAX]);
   const [hideUnknownMonsterLevels, setHideUnknownMonsterLevels] = useState(false);
   const [nameFilter, setNameFilter] = useState('');
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
-  const { selection, legend, index, inventory, data, hasMissingMonsterDetails, loadMonsterDetails, requestSceneRender, admin } = useData();
+  const { selection, legend, index, inventory, data, dataReady, hasMissingMonsterDetails, loadMonsterDetails, refreshViewData, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
 
   useEffect(() => {
@@ -110,6 +112,18 @@ function SidePanel() {
     }
   };
 
+  const forceViewRefresh = async () => {
+    setViewRefreshPending(true);
+    setViewRefreshError(null);
+    try {
+      await refreshViewData();
+    } catch (error) {
+      setViewRefreshError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setViewRefreshPending(false);
+    }
+  };
+
   const legendClick = (item: 'all' | DataGroup) => {
     if (!legend) return;
     if (item === 'all') {
@@ -145,6 +159,10 @@ function SidePanel() {
                 legend={legend}
                 visible={visible}
                 onLegendClick={legendClick}
+                onRefreshView={forceViewRefresh}
+                viewRefreshPending={viewRefreshPending}
+                viewRefreshError={viewRefreshError}
+                dataReady={dataReady}
                 onLoadMonsterDetails={loadVisibleMonsterDetails}
                 detailsPending={detailsPending}
                 detailsError={detailsError}

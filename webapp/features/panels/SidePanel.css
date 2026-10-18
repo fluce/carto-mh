@@ -452,7 +452,11 @@
   border-bottom: 1px solid #e1e6e3;
 }
 
-#side-panel-content .legend-load-details {
+#side-panel-content .legend-load-details,
+#side-panel-content .legend-refresh-view {
+  display: block;
+  box-sizing: border-box;
+  width: calc(100% - 24px);
   margin: 8px 12px 0;
   padding: 7px 9px;
   border: 1px solid #b8c7c1;
@@ -461,15 +465,18 @@
   color: #334c47;
   cursor: pointer;
   font: inherit;
-  text-align: left;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
-#side-panel-content .legend-load-details:hover:not(:disabled) {
+#side-panel-content .legend-load-details:hover:not(:disabled),
+#side-panel-content .legend-refresh-view:hover {
   background: #f0f4f2;
 }
 
-#side-panel-content .legend-load-details:disabled {
-  cursor: default;
+#side-panel-content .legend-load-details:disabled,
+#side-panel-content .legend-refresh-view:disabled {
+  cursor: wait;
   opacity: 0.6;
 }
 

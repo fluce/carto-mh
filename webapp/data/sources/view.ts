@@ -3,20 +3,23 @@ import { updateIndex } from '../index/index.ts';
 import type { SourceItem } from '../../shared/types';
 import { enrichMonstersFromCache } from './monsters.ts';
 
-async function load(): Promise<string[] | false> {
-    const res=await fetch('/api/view', { method: 'GET', headers: {
+async function load(force = false): Promise<string[] | false> {
+    const res=await fetch(`/api/view${force ? '?force=1' : ''}`, { method: 'GET', headers: {
         "Authorization": `Bearer ${await getToken()}`
     } });
     if (res.status === 401) {
         console.error('Unauthorized access on /api/view, will ask for re-authentication');
         return false;
     }
+    if (!res.ok) {
+        throw new Error(`Unable to load view data: ${res.status} ${res.statusText}`);
+    }
     const lines=(await res.text()).split('\n');
     return lines;
 }
 
-export async function loadViewData(): Promise<boolean> {
-    const lines=await load();
+export async function loadViewData(force = false): Promise<boolean> {
+    const lines=await load(force);
     if (!lines) return false;
     const parsedData: Record<string, SourceItem[]> = {};
     let currentSection: string | null = null;

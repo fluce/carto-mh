@@ -45,16 +45,32 @@ export async function updateIndex(kind: string, data: SourceItem[]) {
 }
 
 function removeKindFromIndex(kind: string) {
-    for (const [key, value] of geoIndex.entries()) {
-        const newValue = [...value].filter(item => {
-            item.kind = item.kind.filter(x=>x!=kind);
-            return item.kind.length>0;
-        });
-        if (newValue.length === 0) {
-            geoIndex.delete(key);
+    for (const item of kindIndex.get(kind) ?? []) {
+        item.kind = item.kind.filter(itemKind => itemKind !== kind);
+        if (item.kind.length > 0) continue;
+
+        idIndex.delete(item.id);
+        if (item.name) {
+            for (const prefix of getNamePrefixes(item.name)) {
+                const namedItems = nameIndex.get(prefix);
+                namedItems?.delete(item);
+                if (namedItems?.size === 0) {
+                    nameIndex.delete(prefix);
+                }
+            }
         }
-        else if (newValue.length < value.size) {
-            geoIndex.set(key, new Set(newValue));
+        if (item.x !== undefined && item.y !== undefined && item.z !== undefined) {
+            const key = calcGeoKey(item);
+            if (!key) continue;
+            const geoItems = geoIndex.get(key);
+            for (const geoItem of geoItems ?? []) {
+                if (geoItem.id === item.id) {
+                    geoItems?.delete(geoItem);
+                }
+            }
+            if (geoItems?.size === 0) {
+                geoIndex.delete(key);
+            }
         }
     }
     kindIndex.delete(kind);
