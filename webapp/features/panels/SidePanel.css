@@ -514,6 +514,26 @@
   margin: 2px 0 0;
 }
 
+#side-panel-content .legend-name-filter {
+  display: grid;
+  gap: 5px;
+  margin: 10px 12px;
+  color: #334c47;
+  font-size: 0.82rem;
+}
+
+#side-panel-content .legend-name-filter input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid #cbd5d0;
+  border-radius: 3px;
+  background: #fff;
+  color: #202925;
+  font: inherit;
+}
+
 #side-panel-content .legend ul li {
   display: flex;
   align-items: center;

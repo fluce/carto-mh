@@ -16,9 +16,11 @@ interface LegendContentProps {
   hideUnknownMonsterLevels: boolean;
   onHideUnknownMonsterLevelsChange: (hide: boolean) => void;
   onMonsterLevelRangeChange: (minimumLevel: number, maximumLevel: number) => void;
+  nameFilter: string;
+  onNameFilterChange: (name: string) => void;
 }
 
-function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMissingMonsterDetails, minimumMonsterLevel, maximumMonsterLevel, hideUnknownMonsterLevels, onHideUnknownMonsterLevelsChange, onMonsterLevelRangeChange }: LegendContentProps) {
+function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, detailsPending, detailsError, detailsProgress, hasMissingMonsterDetails, minimumMonsterLevel, maximumMonsterLevel, hideUnknownMonsterLevels, onHideUnknownMonsterLevelsChange, onMonsterLevelRangeChange, nameFilter, onNameFilterChange }: LegendContentProps) {
   if (!legend) {
     return null;
   }
@@ -67,6 +69,15 @@ function LegendContent({ legend, visible, onLegendClick, onLoadMonsterDetails, d
           Masquer les créatures dont le niveau est inconnu
         </label>
       </fieldset>
+      <label className="legend-name-filter">
+        Filtrer par nom
+        <input
+          type="search"
+          value={nameFilter}
+          onChange={event => onNameFilterChange(event.target.value)}
+          placeholder="Nom"
+        />
+      </label>
       <ul>
         <li onClick={() => onLegendClick('all')}>Tout</li>
         {Object.entries(legend).map(([legendKey, legendItem]) => (

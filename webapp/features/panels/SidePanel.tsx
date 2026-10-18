@@ -29,43 +29,51 @@ function SidePanel() {
   const [detailsProgress, setDetailsProgress] = useState({ completed: 0, total: 0 });
   const [monsterLevelRange, setMonsterLevelRange] = useState<[number, number]>([0, MONSTER_LEVEL_MAX]);
   const [hideUnknownMonsterLevels, setHideUnknownMonsterLevels] = useState(false);
+  const [nameFilter, setNameFilter] = useState('');
   const [selectedMonster, setSelectedMonster] = useState<CoordinateIndexedItem | null>(null);
   const { selection, legend, index, inventory, data, hasMissingMonsterDetails, loadMonsterDetails, requestSceneRender, admin } = useData();
   const [visible, setVisible] = useState<DataGroupVisibility>(mapLegendVisibility(legend));
 
   useEffect(() => {
-    const monsterGroup = data?.groups.monstres;
-    if (!monsterGroup) return;
-
+    if (!data) return;
     const [minimumLevel, maximumLevel] = monsterLevelRange;
     const hasLevelFilter = minimumLevel > 0 || maximumLevel < MONSTER_LEVEL_MAX;
-    const itemVisibility = monsterGroup.items.map(monster => {
-      const level = monster.details?.niv;
-      const ranges: Array<[number | undefined, number | undefined]> = [
-        [level?.min, level?.max],
-        [level?.min2, level?.max2],
-      ];
-      const knownRanges = ranges.filter(([rangeMin, rangeMax]) =>
-        typeof rangeMin === 'number' || typeof rangeMax === 'number'
-      );
-      if (knownRanges.length === 0) return !hideUnknownMonsterLevels;
-      if (!hasLevelFilter) return true;
+    const normalizedNameFilter = nameFilter.trim().toLocaleLowerCase();
 
-      return knownRanges.some(([rangeMin, rangeMax]) => {
-        const lowerBound = rangeMin ?? rangeMax;
-        const upperBound = rangeMax ?? rangeMin;
-        return lowerBound !== undefined && upperBound !== undefined &&
-          upperBound >= minimumLevel &&
-          (maximumLevel === MONSTER_LEVEL_MAX || lowerBound <= maximumLevel);
+    for (const [groupName, group] of Object.entries(data.groups)) {
+      const itemVisibility = group.items.map(item => {
+        if (normalizedNameFilter && !item.name?.toLocaleLowerCase().includes(normalizedNameFilter)) {
+          return false;
+        }
+        if (groupName !== 'monstres') return true;
+
+        const level = item.details?.niv;
+        const ranges: Array<[number | undefined, number | undefined]> = [
+          [level?.min, level?.max],
+          [level?.min2, level?.max2],
+        ];
+        const knownRanges = ranges.filter(([rangeMin, rangeMax]) =>
+          typeof rangeMin === 'number' || typeof rangeMax === 'number'
+        );
+        if (knownRanges.length === 0) return !hideUnknownMonsterLevels;
+        if (!hasLevelFilter) return true;
+
+        return knownRanges.some(([rangeMin, rangeMax]) => {
+          const lowerBound = rangeMin ?? rangeMax;
+          const upperBound = rangeMax ?? rangeMin;
+          return lowerBound !== undefined && upperBound !== undefined &&
+            upperBound >= minimumLevel &&
+            (maximumLevel === MONSTER_LEVEL_MAX || lowerBound <= maximumLevel);
+        });
       });
-    });
 
-    monsterGroup.itemVisibility = itemVisibility;
-    monsterGroup.mesh?.data.forEach((_, index) => {
-      setInstanceVisibility(monsterGroup.mesh!, index, itemVisibility[index] ?? true);
-    });
+      group.itemVisibility = itemVisibility;
+      group.mesh?.data.forEach((_, index) => {
+        setInstanceVisibility(group.mesh!, index, itemVisibility[index] ?? true);
+      });
+    }
     requestSceneRender();
-  }, [data, hideUnknownMonsterLevels, monsterLevelRange, requestSceneRender]);
+  }, [data, hideUnknownMonsterLevels, monsterLevelRange, nameFilter, requestSceneRender]);
 
   useEffect(() => {
     if (selection) setIsOpen(true);
@@ -146,6 +154,8 @@ function SidePanel() {
                 maximumMonsterLevel={monsterLevelRange[1]}
                 hideUnknownMonsterLevels={hideUnknownMonsterLevels}
                 onHideUnknownMonsterLevelsChange={setHideUnknownMonsterLevels}
+                nameFilter={nameFilter}
+                onNameFilterChange={setNameFilter}
                 onMonsterLevelRangeChange={(minimumLevel, maximumLevel) => {
                   setMonsterLevelRange([minimumLevel, maximumLevel]);
                 }}

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo } from './geometryHelpers.ts';
+import { createInstancedMesh, createPath, createXYZCube, createXYZGizmo, setInstanceVisibility } from './geometryHelpers.ts';
 import { MaterialHandler } from './MaterialHandler';
 import type { Line2 } from 'three/addons/lines/Line2.js';
 import type { AppData, CoordinateIndexedItem, GeoIndex, PathStep, Point3D, RenderItem, SceneMesh } from '../../shared/types';
@@ -152,6 +152,11 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
             const material = materialHandler.getMaterial(i);
             const d = data.groups[i].items.map(x => { return { x: x.x, y: x.z, z: x.y, data: x }; });
             const mesh = createInstancedMesh(geometry, material, d);
+            mesh.data.forEach((_, index) => {
+                if (data.groups[i].itemVisibility?.[index] === false) {
+                    setInstanceVisibility(mesh, index, false);
+                }
+            });
             data.groups[i].mesh = mesh;
             data.groups[i].color = material.color;
             scene.add(mesh);
@@ -197,6 +202,11 @@ export async function createScene(data: AppData, index: GeoIndex, path: PathStep
     }
     updateCreatureSizes();
     data.groups.tresors.mesh=createInstancedMesh(smallBox, material_tresors, cellDistributedRenderItems.tresors)
+    data.groups.tresors.mesh.data.forEach((_, index) => {
+        if (data.groups.tresors.itemVisibility?.[index] === false) {
+            setInstanceVisibility(data.groups.tresors.mesh!, index, false);
+        }
+    });
     data.groups.tresors.color=material_tresors.color;
     scene.add(data.groups.tresors.mesh);
 
