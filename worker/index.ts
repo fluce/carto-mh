@@ -5,6 +5,7 @@ import { loadGuildes, fetchGuildes } from './domains/guildes.ts';
 import { fetchRawLocations, fetchLocations, fetchTGVLocations, updateLocations } from './domains/locations.ts';
 import { queryMonstersAttributes } from './domains/monsters.ts';
 import { fetchInventory } from './domains/inventory.ts';
+import { fetchUserData, updateUserData } from './domains/data.ts';
 import type { ResponseHeaders, WorkerEnv } from './shared/types.ts';
 
 export default {
@@ -37,6 +38,10 @@ export default {
             return await fetchGuildes(request, env, respHeaders);
         case 'GET /api/inventory':
             return await fetchInventory(request, env, respHeaders);
+        case 'GET /api/data':
+            return await fetchUserData(request, env, respHeaders);
+        case 'PUT /api/data':
+            return await updateUserData(request, env, respHeaders);
         case 'GET /api/locations':
             return await fetchLocations(request, env, respHeaders);
         case 'PUT /api/locations':
@@ -82,9 +87,9 @@ function isAllowedOrigin(origin: string | null, allowedOrigins: string[]): boole
 
 function corsHeaders(origin: string | null, allowedOrigins: string[]): ResponseHeaders {
     const headers: ResponseHeaders = {
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, If-Modified-Since',
-        'Access-Control-Expose-Headers': 'Last-Modified',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, If-Modified-Since, If-Match',
+        'Access-Control-Expose-Headers': 'ETag, Last-Modified',
         'Vary': 'Origin',
     };
 

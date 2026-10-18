@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Index } from './index/indexCore.ts';
-import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, Point3D, Profile, WorkerRequestMap, WorkerResultMap } from '../shared/types';
+import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, JsonValue, Point3D, Profile, UserDataVersion, WorkerRequestMap, WorkerResultMap } from '../shared/types';
 
 type PendingCall = {
   resolve: (result: unknown) => void;
@@ -30,6 +30,8 @@ export interface DataContextValue {
   loginError: string | null;
   loginPending: boolean;
   submitLogin: (id: string, secret: string) => Promise<{ success: true }>;
+  readUserData: <T extends JsonValue = JsonValue>() => Promise<UserDataVersion<T>>;
+  writeUserData: (data: JsonValue, etag: string) => Promise<{ etag: string }>;
   admin: boolean;
 }
 
@@ -74,11 +76,24 @@ function setupWorker() {
             calls.delete(event.data.message_id);
             break;
           }
+          case 'result:readUserData':
+          case 'result:writeUserData': {
+            const call = calls.get(event.data.message_id);
+            if (call) {
+              call.resolve(event.data.result);
+            } else {
+              console.warn(`No call found for worker result with id: ${event.data.message_id}`);
+            }
+            calls.delete(event.data.message_id);
+            break;
+          }
           case 'error:login':
           case 'error:load':
           case 'error:update':
           case 'error:monsters':
           case 'error:inventory':
+          case 'error:readUserData':
+          case 'error:writeUserData':
           case 'error:unknown':
             console.error("Worker reported an error", event.data.error);
             if (event.data.message_id) {
@@ -127,6 +142,14 @@ export async function callWorker<Action extends keyof WorkerRequestMap>(
 export async function getProfile(): Promise<Profile> {
   const { profile } = await workerPromise;
   return profile;
+}
+
+export async function readUserData<T extends JsonValue = JsonValue>(): Promise<UserDataVersion<T>> {
+  return await callWorker('readUserData', {}) as UserDataVersion<T>;
+}
+
+export async function writeUserData(data: JsonValue, etag: string): Promise<{ etag: string }> {
+  return callWorker('writeUserData', { data, etag });
 }
 
 async function loadData() {
@@ -349,6 +372,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loginError,
     loginPending,
     submitLogin,
+    readUserData,
+    writeUserData,
     admin
   }), [data, inventory, index, dataReady, selection, highlighted, centerOnCell, registerCenterOnCell, loadMonsterDetails, needsLogin, loginError, loginPending, registerSceneRenderer, requestSceneRender, hasMissingMonsterDetails, admin]);
 

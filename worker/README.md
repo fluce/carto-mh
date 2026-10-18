@@ -27,6 +27,8 @@ under `token:<token>` and returns the generated 128-bit token.
 KV-backed data endpoints return `Last-Modified` and `Cache-Control: private, no-cache, must-revalidate`.
 Browsers can revalidate cached responses with `If-Modified-Since`; unchanged data is returned as `304 Not Modified`.
 
+`GET /api/data` and `PUT /api/data` read and write a user's generic JSON data in `USER_DATA`, using the MountyHall user ID as the key. A read returns the JSON value (or `null` before the first write) and an `ETag` header. Send that tag in `If-Match` on PUT; a stale tag is rejected with `412 Precondition Failed`. The initial value uses ETag `"0"`.
+
 `mh_user_secret` is encrypted with AES-256-GCM before it is stored. `CREDENTIALS_ENCRYPTION_KEY`
 must be a base64-encoded random 32-byte key and must remain stable to allow future decryption.
 

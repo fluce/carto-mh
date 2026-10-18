@@ -31,6 +31,12 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
             case 'monsters':
                 self.postMessage({ type: 'result:monsters', message_id: event.data.message_id, result: await monsters(event.data.ids) } satisfies DataWorkerResponse);
                 break;
+            case 'readUserData':
+                self.postMessage({ type: 'result:readUserData', message_id: event.data.message_id, result: await readUserData() } satisfies DataWorkerResponse);
+                break;
+            case 'writeUserData':
+                self.postMessage({ type: 'result:writeUserData', message_id: event.data.message_id, result: await writeUserData(event.data.data, event.data.etag) } satisfies DataWorkerResponse);
+                break;
             default:
                 return;
         }
@@ -113,4 +119,41 @@ async function monsters(ids: Array<Pick<MonsterRecord, 'id'> & { name?: string }
 
     return await index.queryMonsters(ids);
 
+}
+
+async function readUserData(): Promise<{ data: import('../shared/types').JsonValue; etag: string }> {
+    const response = await fetch('/api/data', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${await getCachedToken()}` }
+    });
+    if (!response.ok) {
+        throw new Error(`Unable to read user data: ${response.status} ${response.statusText}`);
+    }
+
+    const etag = response.headers.get('ETag');
+    if (!etag) {
+        throw new Error('Unable to read user data: response is missing ETag');
+    }
+    return { data: await response.json(), etag };
+}
+
+async function writeUserData(data: import('../shared/types').JsonValue, etag: string): Promise<{ etag: string }> {
+    const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+            Authorization: `Bearer ${await getCachedToken()}`,
+            'Content-Type': 'application/json',
+            'If-Match': etag,
+        },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        throw new Error(`Unable to write user data: ${response.status} ${response.statusText}`);
+    }
+
+    const result: unknown = await response.json();
+    if (!result || typeof result !== 'object' || !('etag' in result) || typeof result.etag !== 'string') {
+        throw new Error('Unable to write user data: response is missing ETag');
+    }
+    return { etag: result.etag };
 }

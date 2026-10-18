@@ -187,6 +187,15 @@ export interface WorkerRequestMap {
   inventory: Record<string, never>;
   update: Record<string, never>;
   monsters: { ids: Array<Pick<IndexedItem, 'id' | 'name'>> };
+  readUserData: Record<string, never>;
+  writeUserData: { data: JsonValue; etag: string };
+}
+
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export interface UserDataVersion<T extends JsonValue = JsonValue> {
+  data: T;
+  etag: string;
 }
 
 export interface Profile {
@@ -200,6 +209,8 @@ export interface WorkerResultMap {
   inventory: InventoryItem[];
   update: unknown;
   monsters: Array<MonsterDetails & { id: string | number }>;
+  readUserData: UserDataVersion;
+  writeUserData: { etag: string };
 }
 
 export type DataWorkerRequest = {
@@ -214,4 +225,6 @@ export type DataWorkerResponse =
   | { type: 'result:inventory'; message_id: string; result: WorkerResultMap['inventory'] }
   | { type: 'result:update'; message_id: string; result: WorkerResultMap['update'] }
   | { type: 'result:monsters'; message_id: string; result: WorkerResultMap['monsters'] }
-  | { type: 'error:login' | 'error:load' | 'error:inventory' | 'error:update' | 'error:monsters' | 'error:unknown'; message_id?: string; error: string };
+  | { type: 'result:readUserData'; message_id: string; result: WorkerResultMap['readUserData'] }
+  | { type: 'result:writeUserData'; message_id: string; result: WorkerResultMap['writeUserData'] }
+  | { type: 'error:login' | 'error:load' | 'error:inventory' | 'error:update' | 'error:monsters' | 'error:readUserData' | 'error:writeUserData' | 'error:unknown'; message_id?: string; error: string };
