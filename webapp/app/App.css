@@ -724,13 +724,53 @@ body, html, #root {
   font-size: 0.85rem;
 }
 
+#path-finding-panel .path-results {
+  position: relative;
+  min-height: 0;
+}
+
+#path-finding-panel .path-copy-button {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: #38584d;
+  cursor: pointer;
+}
+
+#path-finding-panel .path-copy-button:hover {
+  background: #e5eee8;
+}
+
+#path-finding-panel .path-copy-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 #path-finding-panel .path-instructions {
+  min-height: 0;
   margin: 2px 0 0;
   padding: 8px 0 0;
   border-top: 1px solid #dce3df;
   list-style: none;
   overflow-y: auto;
   font-size: 0.85rem;
+}
+
+#path-finding-panel .path-instructions li:first-child {
+  padding-right: 36px;
 }
 
 #path-finding-panel .path-instructions li {
@@ -796,7 +836,7 @@ body, html, #root {
 
 #path-finding-panel .path-instructions li::after {
   position: absolute;
-  top: 5px;
+  top: 8px;
   left: 4px;
   width: 12px;
   height: 12px;

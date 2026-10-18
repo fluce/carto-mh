@@ -123,6 +123,7 @@ function PathFindingPanel() {
   const [error, setError] = useState('');
   const [calculation, setCalculation] = useState<CalculationSummary | null>(null);
   const [showCalculationDetails, setShowCalculationDetails] = useState(false);
+  const [pathCopied, setPathCopied] = useState(false);
 
   useEffect(() => {
     if (pathOrigin) {
@@ -135,6 +136,7 @@ function PathFindingPanel() {
     setError('');
     setCalculation(null);
     setShowCalculationDetails(false);
+    setPathCopied(false);
 
     try {
       const start = from.point ?? parsePoint(from.value);
@@ -170,6 +172,61 @@ function PathFindingPanel() {
   function handleNetworkChange(event: ChangeEvent<HTMLSelectElement>) {
     const selectedNetworks = [...event.target.selectedOptions].map(option => option.value);
     setShortcutNetwork(selectedNetworks.includes('all') ? ['all'] : selectedNetworks);
+  }
+
+  async function handleCopyPath() {
+    const instructions = getInstructions(path, index);
+    const start = path[0];
+    const destination = path[path.length - 1];
+    const locationDescription = (point: Point3D) => {
+      const location = getLocationInfo(index, point);
+      return location.name ? ` — ${location.name} (${location.type})` : '';
+    };
+    const text = [
+      'Itinéraire',
+      `Départ : ${formatPoint(start)}${locationDescription(start)}`,
+      `Arrivée : ${formatPoint(destination)}${locationDescription(destination)}`,
+      `Réseaux de raccourcis : ${shortcutNetworks
+        .filter(network => shortcutNetwork.includes(network.value))
+        .map(network => network.label)
+        .join(', ') || shortcutNetwork.join(', ')}`,
+      `Coût total : ${calculation?.cost ?? path.reduce((total, step) => total + step.cost, 0)}`,
+      ...(calculation ? [`Durée totale : ${calculation.durationMs.toFixed(2)} ms`] : []),
+      '',
+      'Instructions :',
+      ...instructions.map((instruction, instructionIndex) => {
+        const description = `${instructionIndex + 1}. ${instruction.beforePoint}${formatPoint(instruction.point)}${instruction.afterPoint}`;
+        return `${description}${instruction.locationName ? ` — ${instruction.locationName} (${instruction.locationType})` : ''}`;
+      }),
+      '',
+      'Détail des étapes :',
+      ...path.map((step, stepIndex) => {
+        const movement = stepIndex === 0 ? 'Départ' : step.shortcut ? 'Raccourci' : 'Déplacement';
+        const cost = stepIndex === 0 ? '' : ` — coût : ${step.cost}`;
+        return `${stepIndex + 1}. ${formatPoint(step)} — ${movement}${cost}${locationDescription(step)}`;
+      }),
+      ...(calculation ? [
+        '',
+        'Détails du calcul :',
+        `Appel A* : ${calculation.timings.searchDurationMs.toFixed(2)} ms`,
+        `Nœuds explorés : ${calculation.stats.expandedNodes.toLocaleString()}`,
+        `Nœuds extraits : ${calculation.stats.poppedNodes.toLocaleString()}`,
+        `Extractions obsolètes : ${calculation.stats.stalePops.toLocaleString()}`,
+        `Mises à jour : ${calculation.stats.relaxations.toLocaleString()}`,
+        `Taille maximale de la file : ${calculation.stats.maxOpenSetSize.toLocaleString()}`,
+        `Extrémités de raccourcis : ${calculation.stats.shortcutEndpointCount.toLocaleString()}`,
+        `Initialisation du calculateur : ${calculation.timings.pathfinderInitializationDurationMs.toFixed(2)} ms`,
+        `Initialisation WASM : ${calculation.timings.wasmInitializationDurationMs.toFixed(2)} ms`,
+      ] : []),
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setPathCopied(true);
+      setError('');
+    } catch (copyError) {
+      setError(`Impossible de copier l’itinéraire : ${copyError instanceof Error ? copyError.message : String(copyError)}`);
+    }
   }
 
   return (
@@ -233,28 +290,42 @@ function PathFindingPanel() {
           <button type="submit" disabled={!findPath}>Calculer</button>
           {error && <p role="alert">{error}</p>}
           {path.length > 0 && (
-            <ol className="path-instructions" aria-label="Étapes de l’itinéraire">
-              {getInstructions(path, index).map((instruction, instructionIndex, instructions) => (
-                <li
-                  key={`${instruction.kind}-${instructionIndex}`}
-                  className={`path-step path-step--${instruction.kind}${instructionIndex === instructions.length - 1 ? ' path-step--destination' : ''}`}
-                >
-                  <span className="path-step-description">
-                    {instruction.beforePoint}
-                    <Coordinates
-                      position={instruction.point}
-                      label={`Centrer la vue sur ${formatPoint(instruction.point)}`}
-                      className="path-step-coordinate"
-                      separator=","
-                    />
-                    {instruction.afterPoint}
-                  </span>
-                  {instruction.locationName && (
-                    <small className="path-step-location">{instruction.locationName} ({instruction.locationType})</small>
-                  )}
-                </li>
-              ))}
-            </ol>
+            <div className="path-results">
+              <button
+                type="button"
+                className="path-copy-button"
+                aria-label={pathCopied ? 'Itinéraire copié' : 'Copier l’itinéraire'}
+                title={pathCopied ? 'Itinéraire copié' : 'Copier l’itinéraire'}
+                onClick={handleCopyPath}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="13" rx="1" />
+                  <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h3" />
+                </svg>
+              </button>
+              <ol className="path-instructions" aria-label="Étapes de l’itinéraire">
+                {getInstructions(path, index).map((instruction, instructionIndex, instructions) => (
+                  <li
+                    key={`${instruction.kind}-${instructionIndex}`}
+                    className={`path-step path-step--${instruction.kind}${instructionIndex === instructions.length - 1 ? ' path-step--destination' : ''}`}
+                  >
+                    <span className="path-step-description">
+                      {instruction.beforePoint}
+                      <Coordinates
+                        position={instruction.point}
+                        label={`Centrer la vue sur ${formatPoint(instruction.point)}`}
+                        className="path-step-coordinate"
+                        separator=","
+                      />
+                      {instruction.afterPoint}
+                    </span>
+                    {instruction.locationName && (
+                      <small className="path-step-location">{instruction.locationName} ({instruction.locationType})</small>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
         </form>
       )}
