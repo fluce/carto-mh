@@ -5,21 +5,25 @@ import PathFindingPanel from '../features/pathfinding/PathFindingPanel'
 import LoginDialog from '../features/auth/LoginDialog'
 import './App.css'
 import { DataProvider, useData } from '../data/DataContext.ts';
+import { UserDataProvider, useUserData } from '../data/UserDataContext.tsx';
 import { PathFindingProvider } from '../features/pathfinding/PathFindingProvider'
 
 function App() {
   return (
     <DataProvider>
-      <AppContent />
+      <UserDataProvider>
+        <AppContent />
+      </UserDataProvider>
     </DataProvider>
   )
 }
 
 function AppContent() {
   const { dataReady, needsLogin } = useData();
+  const { loading: userDataLoading } = useUserData();
   const [minimumLoadingElapsed, setMinimumLoadingElapsed] = useState(false);
   const [loadingScreenDismissed, setLoadingScreenDismissed] = useState(false);
-  const readyToDismiss = dataReady && minimumLoadingElapsed && !needsLogin;
+  const readyToDismiss = dataReady && !userDataLoading && minimumLoadingElapsed && !needsLogin;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setMinimumLoadingElapsed(true), 3000);

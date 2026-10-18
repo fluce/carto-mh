@@ -2,9 +2,15 @@ import { db } from './persistence/db.ts';
 import { update } from './sources/update.ts';
 import { loadInventory } from './sources/inventory.ts';
 import * as index from './index/index.ts';
-import type { DataWorkerRequest, DataWorkerResponse, MonsterRecord } from '../shared/types';
+import type { DataWorkerRequest, DataWorkerResponse, MonsterRecord, UserData, UserDataExtensionValue } from '../shared/types';
 
 console.log('Worker script loaded');
+
+let token: string | undefined;
+const tokenLoad = db.get('keyval', 'token').then(storedToken => {
+    token ??= storedToken;
+    return token;
+});
 
 self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
     try {
@@ -46,7 +52,7 @@ self.onmessage = async (event: MessageEvent<DataWorkerRequest>) => {
     }
 };
 
-let token = await db.get('keyval', 'token');
+await tokenLoad;
 if (!token) {
     console.log('No token found, need login');
     self.postMessage({ type: 'need:login' });
@@ -64,7 +70,7 @@ if (!token) {
 
 async function getCachedToken() {
     if (!token) {
-        token = await db.get('keyval', 'token');
+        token = await tokenLoad;
     }
     return token;
 } 
@@ -121,7 +127,7 @@ async function monsters(ids: Array<Pick<MonsterRecord, 'id'> & { name?: string }
 
 }
 
-async function readUserData(): Promise<{ data: import('../shared/types').JsonValue; etag: string }> {
+async function readUserData(): Promise<{ data: UserData; etag: string }> {
     const response = await fetch('/api/data', {
         method: 'GET',
         headers: { Authorization: `Bearer ${await getCachedToken()}` }
@@ -134,10 +140,10 @@ async function readUserData(): Promise<{ data: import('../shared/types').JsonVal
     if (!etag) {
         throw new Error('Unable to read user data: response is missing ETag');
     }
-    return { data: await response.json(), etag };
+    return { data: normalizeUserData(await response.json()), etag };
 }
 
-async function writeUserData(data: import('../shared/types').JsonValue, etag: string): Promise<{ etag: string }> {
+async function writeUserData(data: UserData, etag: string): Promise<{ etag: string }> {
     const response = await fetch('/api/data', {
         method: 'PUT',
         headers: {
@@ -148,7 +154,7 @@ async function writeUserData(data: import('../shared/types').JsonValue, etag: st
         body: JSON.stringify(data),
     });
     if (!response.ok) {
-        throw new Error(`Unable to write user data: ${response.status} ${response.statusText}`);
+        throw new Error(`${response.status} ${response.statusText}: Unable to write user data`);
     }
 
     const result: unknown = await response.json();
@@ -156,4 +162,54 @@ async function writeUserData(data: import('../shared/types').JsonValue, etag: st
         throw new Error('Unable to write user data: response is missing ETag');
     }
     return { etag: result.etag };
+}
+
+function normalizeUserData(value: unknown): UserData {
+    if (value === null) {
+        return { friendGuilds: [], foeGuilds: [], friendTrolls: [], foeTrolls: [] };
+    }
+    if (!isRecord(value)) {
+        throw new TypeError('User data must be a JSON object');
+    }
+
+    const friendGuilds = readIds(value.friendGuilds, 'friendGuilds');
+    const foeGuilds = readIds(value.foeGuilds, 'foeGuilds');
+    const friendTrolls = readIds(value.friendTrolls, 'friendTrolls');
+    const foeTrolls = readIds(value.foeTrolls, 'foeTrolls');
+    const extra: Record<string, UserDataExtensionValue> = {};
+    for (const [key, item] of Object.entries(value)) {
+        if (!isUserDataExtensionValue(item)) {
+            throw new TypeError(`Invalid user data property: ${key}`);
+        }
+        extra[key] = item;
+    }
+
+    return { ...extra, friendGuilds, foeGuilds, friendTrolls, foeTrolls };
+}
+
+function readIds(value: unknown, property: string): Array<string | number> {
+    if (value === undefined) {
+        return [];
+    }
+    if (!Array.isArray(value) || !value.every(id => typeof id === 'string' || typeof id === 'number')) {
+        throw new TypeError(`User data property ${property} must be an array of string or number IDs`);
+    }
+    return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isUserDataExtensionValue(value: unknown): value is UserDataExtensionValue {
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return true;
+    }
+    if (Array.isArray(value)) {
+        return value.every(isUserDataExtensionValue);
+    }
+    if (isRecord(value)) {
+        return Object.values(value).every(isUserDataExtensionValue);
+    }
+    return false;
 }

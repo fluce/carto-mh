@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Index } from './index/indexCore.ts';
-import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, JsonValue, Point3D, Profile, UserDataVersion, WorkerRequestMap, WorkerResultMap } from '../shared/types';
+import type { AppData, CoordinateIndexedItem, DataGroup, DataWorkerResponse, IndexedItem, InventoryItem, Point3D, Profile, UserData, UserDataVersion, WorkerRequestMap, WorkerResultMap } from '../shared/types';
 
 type PendingCall = {
   resolve: (result: unknown) => void;
@@ -30,12 +30,19 @@ export interface DataContextValue {
   loginError: string | null;
   loginPending: boolean;
   submitLogin: (id: string, secret: string) => Promise<{ success: true }>;
-  readUserData: <T extends JsonValue = JsonValue>() => Promise<UserDataVersion<T>>;
-  writeUserData: (data: JsonValue, etag: string) => Promise<{ etag: string }>;
+  readUserData: () => Promise<UserDataVersion>;
+  writeUserData: (data: UserData, etag: string) => Promise<{ etag: string }>;
   admin: boolean;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);
+
+export class UserDataConflictError extends Error {
+  constructor() {
+    super('User data changed on the server');
+    this.name = 'UserDataConflictError';
+  }
+}
 
 let loginRequired = false;
 const loginListeners = new Set<() => void>();
@@ -97,7 +104,10 @@ function setupWorker() {
           case 'error:unknown':
             console.error("Worker reported an error", event.data.error);
             if (event.data.message_id) {
-              calls.get(event.data.message_id)?.reject(new Error(event.data.error));
+              const error = event.data.type === 'error:writeUserData' && event.data.error.startsWith('412 ')
+                ? new UserDataConflictError()
+                : new Error(event.data.error);
+              calls.get(event.data.message_id)?.reject(error);
               calls.delete(event.data.message_id);
             }
             break;
@@ -144,11 +154,11 @@ export async function getProfile(): Promise<Profile> {
   return profile;
 }
 
-export async function readUserData<T extends JsonValue = JsonValue>(): Promise<UserDataVersion<T>> {
-  return await callWorker('readUserData', {}) as UserDataVersion<T>;
+export async function readUserData(): Promise<UserDataVersion> {
+  return callWorker('readUserData', {});
 }
 
-export async function writeUserData(data: JsonValue, etag: string): Promise<{ etag: string }> {
+export async function writeUserData(data: UserData, etag: string): Promise<{ etag: string }> {
   return callWorker('writeUserData', { data, etag });
 }
 

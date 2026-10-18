@@ -188,13 +188,21 @@ export interface WorkerRequestMap {
   update: Record<string, never>;
   monsters: { ids: Array<Pick<IndexedItem, 'id' | 'name'>> };
   readUserData: Record<string, never>;
-  writeUserData: { data: JsonValue; etag: string };
+  writeUserData: { data: UserData; etag: string };
 }
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type UserDataExtensionValue = string | number | boolean | null | UserDataExtensionValue[] | { [key: string]: UserDataExtensionValue };
 
-export interface UserDataVersion<T extends JsonValue = JsonValue> {
-  data: T;
+export interface UserData {
+  friendGuilds: Array<string | number>;
+  foeGuilds: Array<string | number>;
+  friendTrolls: Array<string | number>;
+  foeTrolls: Array<string | number>;
+  [key: string]: UserDataExtensionValue;
+}
+
+export interface UserDataVersion {
+  data: UserData;
   etag: string;
 }
 

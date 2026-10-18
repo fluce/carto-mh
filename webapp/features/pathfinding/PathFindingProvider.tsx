@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { findPath as findPathWithWasm } from './findPathWasm.ts';
 import { useData } from '../../data/DataContext.ts';
+import { useUserData } from '../../data/UserDataContext.tsx';
 import { PathFindingContext } from './PathFindingContext.ts';
 import type { PathFindingContextValue } from './PathFindingContext.ts';
 import type { InventoryItem, PathStep, Point3D, ShortcutNetworks } from '../../shared/types';
 
 export function PathFindingProvider({ children }: { children: ReactNode }) {
   const { data, index, inventory } = useData();
+  const { userData } = useUserData();
   const [path, setPath] = useState<PathStep[]>([]);
   const [shortcutNetwork, setShortcutNetwork] = useState<ShortcutNetworks[]>(['ALL']);
   const pathOrigin = data
@@ -15,7 +17,7 @@ export function PathFindingProvider({ children }: { children: ReactNode }) {
   const shortcutNetworks = useMemo(() => [
     { value: 'ALL', label: 'Tous les réseaux' },
     { value: 'TGV', label: 'TGV' },
-    { value: 'TGV_REDUCED', label: 'TGV hors tanières' },
+    { value: 'TGV_REDUCED', label: 'TGV hors tanières des guildes non amies' },
     { value: 'SHORTCUTS', label: 'Raccourcis' },
     { value: 'SHORTCUTS_REDUCED', label: 'Raccourcis dont j\'ai la carte' },
     ...[...new Set((data?.raccourcis ?? []).map(raccourci => raccourci.typeLieu))]
@@ -29,10 +31,11 @@ export function PathFindingProvider({ children }: { children: ReactNode }) {
       throw new Error('Le calcul d’itinéraire est encore en cours de chargement.');
     }
 
-    const result = await findPathWithWasm(index, from, target, network, getOwnedMaps(inventory));
+    const friendGuilds = userData?.friendGuilds ?? [];
+    const result = await findPathWithWasm(index, from, target, network, getOwnedMaps(inventory), friendGuilds);
     setPath(result.path);
     return result;
-  }, [data, index, shortcutNetwork]);
+  }, [data, index, inventory, shortcutNetwork, userData?.friendGuilds]);
 
   useEffect(() => {
     if (!data || !index || !pathOrigin) return;

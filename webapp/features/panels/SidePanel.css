@@ -142,6 +142,73 @@
   min-width: 0;
 }
 
+#side-panel-content .coordinate-object-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#side-panel-content .coordinate-object-heading strong {
+  flex: 1;
+  min-width: 0;
+}
+
+#side-panel-content .coordinate-object-guild {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#side-panel-content .coordinate-object-guild small {
+  flex: 1;
+  min-width: 0;
+}
+
+#side-panel-content .relation-state-button {
+  display: grid;
+  flex: 0 0 26px;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+#side-panel-content .relation-state-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#side-panel-content .relation-state-button--neutral {
+  color: #64716b;
+}
+
+#side-panel-content .relation-state-button--friend {
+  color: #27804e;
+}
+
+#side-panel-content .relation-state-button--foe {
+  color: #a34444;
+}
+
+#side-panel-content .relation-state-button:hover {
+  background: #e7efec;
+}
+
+#side-panel-content .user-data-error {
+  margin: 8px 0 0;
+  color: #a34444;
+  font-size: 0.8rem;
+}
+
 #side-panel-content .coordinate-object-action {
   flex: 0 0 28px;
   width: 28px;

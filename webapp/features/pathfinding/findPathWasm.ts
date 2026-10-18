@@ -7,7 +7,12 @@ const TGV_SHORTCUT_COST = 6;
 
 type EligibleShortcut = IndexedItem & Point3D & { transportNetwork: string };
 
-function isEligibleRaccourci(location: IndexedItem, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): location is EligibleShortcut {
+function isEligibleRaccourci(
+    location: IndexedItem,
+    shortcutNetwork: ShortcutNetworks[],
+    ownedMaps: string[],
+    friendGuilds: Array<string | number>,
+): location is EligibleShortcut {
     if (!location.kind?.includes('location')) return false;
     if (!location.transportNetwork) return false;
     if (!location.x || !location.y || !location.z) return false;
@@ -15,23 +20,43 @@ function isEligibleRaccourci(location: IndexedItem, shortcutNetwork: ShortcutNet
     if (location.transportNetwork.startsWith('shortcut:') && shortcutNetwork.includes('SHORTCUTS')) return true;
     if (location.transportNetwork.startsWith('shortcut:') && ownedMaps.includes(location.transportNetwork) && shortcutNetwork.includes('SHORTCUTS_REDUCED')) return true;
     if (location.transportNetwork==="tgv" && shortcutNetwork.includes('TGV')) return true;
-    if (location.transportNetwork==="tgv" && location.type!=="Tanière" && shortcutNetwork.includes('TGV_REDUCED')) return true;
+    if (location.transportNetwork === 'tgv' && shortcutNetwork.includes('TGV_REDUCED')) {
+        return location.type !== 'Tanière' || isFriendlyTaniere(location.name, friendGuilds);
+    }
 
     if (shortcutNetwork.includes(location.transportNetwork)) return true;
     return false;
 }
 
-function getRaccourcis(index: GeoIndex, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): EligibleShortcut[] {
-    return [...index.getAll()].filter(location => isEligibleRaccourci(location, shortcutNetwork, ownedMaps));
+function isFriendlyTaniere(name: string | undefined, friendGuilds: Array<string | number>): boolean {
+    const guildId = name?.match(/\(([^()]*)\)\s*$/)?.[1]?.trim();
+    return guildId !== undefined && friendGuilds.some(friendGuildId => String(friendGuildId) === guildId);
+}
+
+function getRaccourcis(
+    index: GeoIndex,
+    shortcutNetwork: ShortcutNetworks[],
+    ownedMaps: string[],
+    friendGuilds: Array<string | number>,
+): EligibleShortcut[] {
+    return [...index.getAll()].filter(location =>
+        isEligibleRaccourci(location, shortcutNetwork, ownedMaps, friendGuilds)
+    );
 }
 
 let pathfinder: PathFinder3D | undefined;
 let cachedIndex: GeoIndex | undefined;
 let cachedShortcutNetwork: string[] | undefined;
+let cachedFriendGuilds: string[] | undefined;
 let pathFinderInitialization: Promise<void> | undefined;
 let wasmInitializationDurationMs = 0;
 
-function initializePathfinder(index: GeoIndex, shortcutNetwork: ShortcutNetworks[], ownedMaps: string[]): PathFinder3D {
+function initializePathfinder(
+    index: GeoIndex,
+    shortcutNetwork: ShortcutNetworks[],
+    ownedMaps: string[],
+    friendGuilds: Array<string | number>,
+): PathFinder3D {
     const nextPathfinder = new PathFinder3D(...GRID_BOUNDS);
 
     for (const lieu of index.getByKind("trou")) {
@@ -40,7 +65,7 @@ function initializePathfinder(index: GeoIndex, shortcutNetwork: ShortcutNetworks
         }
     }
 
-    const raccourcis = getRaccourcis(index, shortcutNetwork, ownedMaps);
+    const raccourcis = getRaccourcis(index, shortcutNetwork, ownedMaps, friendGuilds);
     const shortcutsByType = raccourcis.reduce<Map<string, EligibleShortcut[]>>((groups, raccourci) => {
         const group = groups.get(raccourci.transportNetwork) ?? [];
         group.push(raccourci);
@@ -67,7 +92,14 @@ function initializePathfinder(index: GeoIndex, shortcutNetwork: ShortcutNetworks
     return nextPathfinder;
 }
 
-export async function findPath(index: GeoIndex, start: Point3D, target: Point3D, shortcutNetwork: ShortcutNetworks[] = ['ALL'], ownedMaps: string[] = []): Promise<PathResult> {
+export async function findPath(
+    index: GeoIndex,
+    start: Point3D,
+    target: Point3D,
+    shortcutNetwork: ShortcutNetworks[] = ['ALL'],
+    ownedMaps: string[] = [],
+    friendGuilds: Array<string | number> = [],
+): Promise<PathResult> {
     if (!pathFinderInitialization) {
         const initializationStartedAt = performance.now();
         pathFinderInitialization = initPathFinder().then(() => {
@@ -79,14 +111,18 @@ export async function findPath(index: GeoIndex, start: Point3D, target: Point3D,
     const network = [...new Set(shortcutNetwork)].sort();
     const networkUnchanged = cachedShortcutNetwork?.length === network.length
         && cachedShortcutNetwork.every((value, position) => value === network[position]);
+    const sortedFriendGuilds = [...new Set(friendGuilds.map(String))].sort();
+    const friendGuildsUnchanged = cachedFriendGuilds?.length === sortedFriendGuilds.length
+        && cachedFriendGuilds.every((value, position) => value === sortedFriendGuilds[position]);
 
     let pathfinderInitializationDurationMs = 0;
-    if (!pathfinder || cachedIndex !== index || !networkUnchanged) {
+    if (!pathfinder || cachedIndex !== index || !networkUnchanged || !friendGuildsUnchanged) {
         const initializationStartedAt = performance.now();
-        pathfinder = initializePathfinder(index, shortcutNetwork, ownedMaps);
+        pathfinder = initializePathfinder(index, shortcutNetwork, ownedMaps, friendGuilds);
         pathfinderInitializationDurationMs = performance.now() - initializationStartedAt;
         cachedIndex = index;
         cachedShortcutNetwork = network;
+        cachedFriendGuilds = sortedFriendGuilds;
     }
 
     const searchStartedAt = performance.now();
